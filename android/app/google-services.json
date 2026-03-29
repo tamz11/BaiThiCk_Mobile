@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "892439469312",
+    "project_id": "baithick",
+    "storage_bucket": "baithick.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:892439469312:android:f4573c4c904b0dfa11e7e5",
+        "android_client_info": {
+          "package_name": "com.example.baithick"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLLZscSBliJJDU3r9CJWxfFCI3QJRdwwo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
