@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../data/appointment_slots_repository.dart';
+
 class MyAppointmentList extends StatefulWidget {
   const MyAppointmentList({super.key});
 
@@ -28,13 +30,52 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
-  Future<void> _cancel(String uid, String id) async {
-    await FirebaseFirestore.instance
+  Future<void> _cancel(String uid, String id, Map<String, dynamic> data) async {
+    final firestore = FirebaseFirestore.instance;
+    final pendingRef = firestore
         .collection('appointments')
         .doc(uid)
         .collection('pending')
-        .doc(id)
-        .delete();
+        .doc(id);
+
+    DateTime date;
+    final rawDate = data['date'];
+    if (rawDate is Timestamp) {
+      date = rawDate.toDate();
+    } else if (rawDate is DateTime) {
+      date = rawDate;
+    } else {
+      date = DateTime.now();
+    }
+
+    final doctorName = data['doctor']?.toString() ?? '';
+    final doctorId = (data['doctorId']?.toString().trim().isNotEmpty ?? false)
+        ? data['doctorId'].toString().trim()
+        : AppointmentSlotsRepository.normalizeDoctorId(doctorName);
+    final dayKey = (data['dayKey']?.toString().trim().isNotEmpty ?? false)
+        ? data['dayKey'].toString().trim()
+        : AppointmentSlotsRepository.dayKey(date);
+    final slotKey = (data['slotKey']?.toString().trim().isNotEmpty ?? false)
+        ? data['slotKey'].toString().trim()
+        : AppointmentSlotsRepository.slotKeyFromDateTime(date);
+
+    final slotRef = AppointmentSlotsRepository.slotDocRef(
+      firestore: firestore,
+      doctorId: doctorId,
+      date: date,
+      slotKey: slotKey,
+    );
+    final userSlotRef = firestore
+        .collection('appointments')
+        .doc(uid)
+        .collection('pending_slots')
+        .doc('${dayKey}_$slotKey');
+
+    final batch = firestore.batch();
+    batch.delete(pendingRef);
+    batch.delete(slotRef);
+    batch.delete(userSlotRef);
+    await batch.commit();
   }
 
   @override
@@ -88,7 +129,11 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                     CircleAvatar(
                       radius: 25,
                       backgroundColor: Colors.white,
-                      child: Icon(Icons.event_available_rounded, color: _primary, size: 22),
+                      child: Icon(
+                        Icons.event_available_rounded,
+                        color: _primary,
+                        size: 22,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -129,13 +174,16 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => _cancel(user.uid, doc.id),
+                      onPressed: () => _cancel(user.uid, doc.id, data),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.red.shade700,
                       ),
                       child: Text(
                         'Hủy',
-                        style: GoogleFonts.lato(fontWeight: FontWeight.w800, fontSize: 14),
+                        style: GoogleFonts.lato(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
