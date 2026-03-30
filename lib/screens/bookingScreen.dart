@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../data/appointment_slots_repository.dart';
+import '../data/realtime_doctors_repository.dart';
 import 'myAppointments.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -33,11 +35,56 @@ class _BookingScreenState extends State<BookingScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  String _doctorId = '';
+  String _openHour = '08:00';
+  String _closeHour = '17:00';
+  bool _loadingDoctorMeta = false;
+  bool _loadingAvailability = false;
+  List<TimeOfDay> _dailySlots = const [];
+  Set<String> _bookedSlotKeys = const {};
 
   @override
   void initState() {
     super.initState();
     _doctorController = TextEditingController(text: widget.doctor);
+    _doctorId = AppointmentSlotsRepository.normalizeDoctorId(widget.doctor);
+    _initDoctorMeta();
+  }
+
+  Future<void> _initDoctorMeta() async {
+    setState(() {
+      _loadingDoctorMeta = true;
+    });
+
+    try {
+      final doctor = await RealtimeDoctorsRepository.fetchDoctorByExactName(
+        widget.doctor,
+      );
+      if (!mounted) return;
+      setState(() {
+        _doctorId = AppointmentSlotsRepository.normalizeDoctorId(
+          widget.doctor,
+          explicitId: doctor?['id']?.toString(),
+        );
+        _openHour = doctor?['openHour']?.toString().trim().isNotEmpty == true
+            ? doctor!['openHour'].toString().trim()
+            : _openHour;
+        _closeHour = doctor?['closeHour']?.toString().trim().isNotEmpty == true
+            ? doctor!['closeHour'].toString().trim()
+            : _closeHour;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingDoctorMeta = false;
+        });
+      }
+      if (_selectedDate != null) {
+        await _loadAvailability(_selectedDate!);
+      }
+    }
   }
 
   Future<void> _selectDate() async {
@@ -50,16 +97,121 @@ class _BookingScreenState extends State<BookingScreen> {
     if (date == null) return;
     setState(() {
       _selectedDate = date;
+      _selectedTime = null;
       _dateController.text = DateFormat('dd-MM-yyyy').format(date);
+      _timeController.clear();
+    });
+    await _loadAvailability(date);
+  }
+
+  Future<void> _loadAvailability(DateTime date) async {
+    setState(() {
+      _loadingAvailability = true;
+    });
+
+    final slots = AppointmentSlotsRepository.buildDailySlots(
+      date: date,
+      openHour: _openHour,
+      closeHour: _closeHour,
+    );
+    final booked = await AppointmentSlotsRepository.fetchBookedSlotKeys(
+      firestore: _firestore,
+      doctorId: _doctorId,
+      date: date,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _dailySlots = slots;
+      _bookedSlotKeys = booked;
+      _loadingAvailability = false;
     });
   }
 
+  bool _isSlotUnavailable(TimeOfDay slot) {
+    final date = _selectedDate;
+    if (date == null) return true;
+
+    final key = AppointmentSlotsRepository.slotKeyFromTime(slot);
+    if (_bookedSlotKeys.contains(key)) return true;
+    return AppointmentSlotsRepository.isPastSlot(date, slot);
+  }
+
   Future<void> _selectTime() async {
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-    if (time == null) return;
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn ngày trước khi chọn giờ')),
+      );
+      return;
+    }
+    if (_loadingAvailability) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đang tải khung giờ, vui lòng đợi...')),
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<TimeOfDay>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Chọn khung giờ (60 phút)',
+                style: GoogleFonts.lato(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 14),
+              if (_dailySlots.isEmpty)
+                Text(
+                  'Không có khung giờ khả dụng trong ngày này.',
+                  style: GoogleFonts.lato(color: Colors.black54),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _dailySlots.map((slot) {
+                    final unavailable = _isSlotUnavailable(slot);
+                    final text = MaterialLocalizations.of(
+                      context,
+                    ).formatTimeOfDay(slot, alwaysUse24HourFormat: true);
+                    return ChoiceChip(
+                      label: Text(text),
+                      selected:
+                          _selectedTime?.hour == slot.hour &&
+                          _selectedTime?.minute == slot.minute,
+                      onSelected: unavailable
+                          ? null
+                          : (_) {
+                              Navigator.pop(context, slot);
+                            },
+                      disabledColor: Colors.grey.shade300,
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected == null) return;
     setState(() {
-      _selectedTime = time;
-      _timeController.text = time.format(context);
+      _selectedTime = selected;
+      _timeController.text = MaterialLocalizations.of(
+        context,
+      ).formatTimeOfDay(selected, alwaysUse24HourFormat: true);
     });
   }
 
@@ -74,17 +226,101 @@ class _BookingScreenState extends State<BookingScreen> {
       _selectedTime!.hour,
       _selectedTime!.minute,
     );
+    final slotKey = AppointmentSlotsRepository.slotKeyFromDateTime(dateTime);
+    final dayKey = AppointmentSlotsRepository.dayKey(dateTime);
+    final dateTimestamp = Timestamp.fromDate(dateTime);
+
+    final pendingRef = _firestore
+        .collection('appointments')
+        .doc(user.uid)
+        .collection('pending')
+        .doc();
+    final allRef = _firestore
+        .collection('appointments')
+        .doc(user.uid)
+        .collection('all')
+        .doc();
+    final slotRef = AppointmentSlotsRepository.slotDocRef(
+      firestore: _firestore,
+      doctorId: _doctorId,
+      date: dateTime,
+      slotKey: slotKey,
+    );
+    final userSlotRef = _firestore
+        .collection('appointments')
+        .doc(user.uid)
+        .collection('pending_slots')
+        .doc('${dayKey}_$slotKey');
 
     final payload = {
       'name': _nameController.text.trim(),
       'phone': _phoneController.text.trim(),
       'description': _descriptionController.text.trim(),
       'doctor': widget.doctor,
-      'date': dateTime,
+      'doctorId': _doctorId,
+      'dayKey': dayKey,
+      'slotKey': slotKey,
+      'date': dateTimestamp,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
     };
 
-    await FirebaseFirestore.instance.collection('appointments').doc(user.uid).collection('pending').add(payload);
-    await FirebaseFirestore.instance.collection('appointments').doc(user.uid).collection('all').add(payload);
+    await _firestore.runTransaction((tx) async {
+      final slotSnap = await tx.get(slotRef);
+      if (slotSnap.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'slot-unavailable',
+          message: 'Khung giờ này đã được đặt.',
+        );
+      }
+
+      final userSlotSnap = await tx.get(userSlotRef);
+      if (userSlotSnap.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'patient-conflict',
+          message: 'Bạn đã có lịch hẹn khác trùng khung giờ này.',
+        );
+      }
+
+      tx.set(slotRef, {
+        'doctor': widget.doctor,
+        'doctorId': _doctorId,
+        'dayKey': dayKey,
+        'slotKey': slotKey,
+        'date': dateTimestamp,
+        'bookedBy': user.uid,
+        'appointmentPendingId': pendingRef.id,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      tx.set(pendingRef, payload);
+      tx.set(allRef, {...payload, 'sourcePendingId': pendingRef.id});
+      tx.set(userSlotRef, {
+        'uid': user.uid,
+        'doctorId': _doctorId,
+        'dayKey': dayKey,
+        'slotKey': slotKey,
+        'date': dateTimestamp,
+        'appointmentPendingId': pendingRef.id,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<bool> _hasLegacyPendingConflict(DateTime dateTime) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    final snapshot = await _firestore
+        .collection('appointments')
+        .doc(user.uid)
+        .collection('pending')
+        .where('date', isEqualTo: Timestamp.fromDate(dateTime))
+        .limit(1)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
   }
 
   void _showAlertDialog() {
@@ -95,10 +331,7 @@ class _BookingScreenState extends State<BookingScreen> {
           'Xong!',
           style: GoogleFonts.lato(fontWeight: FontWeight.bold),
         ),
-        content: Text(
-          'Lịch hẹn đã được đăng ký.',
-          style: GoogleFonts.lato(),
-        ),
+        content: Text('Lịch hẹn đã được đăng ký.', style: GoogleFonts.lato()),
         actions: [
           TextButton(
             child: Text(
@@ -126,7 +359,51 @@ class _BookingScreenState extends State<BookingScreen> {
       return;
     }
 
-    await _createAppointment();
+    if (_isSlotUnavailable(_selectedTime!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khung giờ này đã kín, vui lòng chọn giờ khác'),
+        ),
+      );
+      await _loadAvailability(_selectedDate!);
+      return;
+    }
+
+    final selectedDateTime = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+    if (await _hasLegacyPendingConflict(selectedDateTime)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn đã có lịch hẹn khác trùng khung giờ này.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _createAppointment();
+    } on FirebaseException catch (e) {
+      String message = 'Không thể đặt lịch. Vui lòng thử lại.';
+      if (e.code == 'slot-unavailable') {
+        message =
+            'Khung giờ này vừa được người khác đặt, vui lòng chọn giờ khác.';
+      } else if (e.code == 'patient-conflict') {
+        message = 'Bạn đã có lịch hẹn khác trùng khung giờ này.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+      await _loadAvailability(_selectedDate!);
+      return;
+    }
 
     if (!mounted) return;
     _showAlertDialog();
@@ -175,11 +452,9 @@ class _BookingScreenState extends State<BookingScreen> {
           child: ListView(
             shrinkWrap: true,
             children: [
-              Container(
-                child: const Image(
-                  image: AssetImage('assets/appointment.jpg'),
-                  height: 250,
-                ),
+              const Image(
+                image: AssetImage('assets/appointment.jpg'),
+                height: 250,
               ),
               const SizedBox(height: 10),
               Form(
@@ -206,7 +481,9 @@ class _BookingScreenState extends State<BookingScreen> {
                         focusNode: _f1,
                         hint: 'Tên bệnh nhân*',
                         validator: (value) {
-                          if ((value ?? '').isEmpty) return 'Vui lòng nhập tên bệnh nhân';
+                          if ((value ?? '').isEmpty) {
+                            return 'Vui lòng nhập tên bệnh nhân';
+                          }
                           return null;
                         },
                         onSubmitted: () {
@@ -252,7 +529,9 @@ class _BookingScreenState extends State<BookingScreen> {
                         hint: 'Tên bác sĩ*',
                         readOnly: true,
                         validator: (value) {
-                          if ((value ?? '').isEmpty) return 'Vui lòng nhập tên bác sĩ';
+                          if ((value ?? '').isEmpty) {
+                            return 'Vui lòng nhập tên bác sĩ';
+                          }
                           return null;
                         },
                       ),
@@ -263,7 +542,9 @@ class _BookingScreenState extends State<BookingScreen> {
                         hint: 'Chọn ngày*',
                         icon: Icons.date_range_outlined,
                         validator: (value) {
-                          if ((value ?? '').isEmpty) return 'Vui lòng chọn ngày';
+                          if ((value ?? '').isEmpty) {
+                            return 'Vui lòng chọn ngày';
+                          }
                           return null;
                         },
                         onTap: _selectDate,
@@ -287,6 +568,26 @@ class _BookingScreenState extends State<BookingScreen> {
                           _f5.unfocus();
                         },
                       ),
+                      if (_loadingDoctorMeta || _loadingAvailability)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: LinearProgressIndicator(minHeight: 3),
+                        ),
+                      if (_selectedDate != null && !_loadingAvailability)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 12),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Khung giờ còn trống: ${_dailySlots.where((slot) => !_isSlotUnavailable(slot)).length}/${_dailySlots.length}',
+                              style: GoogleFonts.lato(
+                                fontSize: 13,
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 40),
                       SizedBox(
                         height: 50,
@@ -384,7 +685,11 @@ class _BookingScreenState extends State<BookingScreen> {
             textInputAction: TextInputAction.next,
             style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.bold),
             decoration: InputDecoration(
-              contentPadding: const EdgeInsets.only(left: 20, top: 10, bottom: 10),
+              contentPadding: const EdgeInsets.only(
+                left: 20,
+                top: 10,
+                bottom: 10,
+              ),
               border: const OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(90.0)),
                 borderSide: BorderSide.none,
