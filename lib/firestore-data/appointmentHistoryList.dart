@@ -4,11 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../model/appointment_status.dart';
+
 class AppointmentHistoryList extends StatefulWidget {
-  const AppointmentHistoryList({
-    super.key,
-    this.compactProfileStyle = false,
-  });
+  const AppointmentHistoryList({super.key, this.compactProfileStyle = false});
 
   final bool compactProfileStyle;
 
@@ -31,6 +30,20 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
       date = DateTime.now();
     }
     return DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  Color _statusColor(String status) {
+    switch (AppointmentStatus.normalize(status)) {
+      case AppointmentStatus.confirmed:
+        return Colors.green.shade700;
+      case AppointmentStatus.completed:
+        return Colors.blueGrey.shade700;
+      case AppointmentStatus.cancelled:
+        return Colors.red.shade700;
+      case AppointmentStatus.pending:
+      default:
+        return Colors.orange.shade700;
+    }
   }
 
   @override
@@ -64,10 +77,15 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
           );
         }
 
-        final visibleDocs = widget.compactProfileStyle ? docs.take(1).toList() : docs;
+        final visibleDocs = widget.compactProfileStyle
+            ? docs.take(1).toList()
+            : docs;
         return Column(
           children: visibleDocs.map((doc) {
             final data = doc.data();
+            final status = AppointmentStatus.normalize(
+              data['status']?.toString(),
+            );
             if (widget.compactProfileStyle) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 2),
@@ -92,6 +110,14 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+                    Text(
+                      AppointmentStatus.label(status),
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: _statusColor(status),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -100,27 +126,50 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   color: _soft,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.history_rounded, size: 18, color: _primary),
+                    const Icon(
+                      Icons.history_rounded,
+                      size: 18,
+                      color: _primary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        '${data['doctor'] ?? 'Bác sĩ'} - ${_formatDate(data['date'])}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.lato(
-                          fontSize: 14,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${data['doctor'] ?? 'Bác sĩ'} - ${_formatDate(data['date'])}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.lato(
+                              fontSize: 14,
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            AppointmentStatus.label(status),
+                            style: GoogleFonts.lato(
+                              fontSize: 12,
+                              color: _statusColor(status),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.circle, size: 10, color: _statusColor(status)),
                   ],
                 ),
               ),
