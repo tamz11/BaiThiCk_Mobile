@@ -134,4 +134,23 @@ class AppointmentSlotsRepository {
 
     return snapshot.docs.map((doc) => doc.id).toSet();
   }
+
+  static Future<Set<String>> fetchUserConfirmedSlotKeys({
+    required FirebaseFirestore firestore,
+    required String uid,
+    required DateTime date,
+  }) async {
+    final snapshot = await firestore
+        .collection('appointments')
+        .doc(uid)
+        .collection('pending')
+        .where('dayKey', isEqualTo: dayKey(date))
+        .where('status', isEqualTo: 'confirmed')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => doc.data()['slotKey']?.toString() ?? '')
+        .where((slot) => slot.isNotEmpty)
+        .toSet();
+  }
 }

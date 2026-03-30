@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../data/appointment_slots_repository.dart';
 import '../data/realtime_doctors_repository.dart';
+import '../model/appointment_status.dart';
 import 'myAppointments.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -109,14 +110,25 @@ class _BookingScreenState extends State<BookingScreen> {
       _loadingAvailability = true;
     });
 
+    final user = _auth.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      setState(() {
+        _dailySlots = const [];
+        _bookedSlotKeys = const {};
+        _loadingAvailability = false;
+      });
+      return;
+    }
+
     final slots = AppointmentSlotsRepository.buildDailySlots(
       date: date,
       openHour: _openHour,
       closeHour: _closeHour,
     );
-    final booked = await AppointmentSlotsRepository.fetchBookedSlotKeys(
+    final booked = await AppointmentSlotsRepository.fetchUserConfirmedSlotKeys(
       firestore: _firestore,
-      doctorId: _doctorId,
+      uid: user.uid,
       date: date,
     );
 
@@ -239,13 +251,7 @@ class _BookingScreenState extends State<BookingScreen> {
         .collection('appointments')
         .doc(user.uid)
         .collection('all')
-        .doc();
-    final slotRef = AppointmentSlotsRepository.slotDocRef(
-      firestore: _firestore,
-      doctorId: _doctorId,
-      date: dateTime,
-      slotKey: slotKey,
-    );
+        .doc(pendingRef.id);
     final userSlotRef = _firestore
         .collection('appointments')
         .doc(user.uid)
@@ -261,39 +267,24 @@ class _BookingScreenState extends State<BookingScreen> {
       'dayKey': dayKey,
       'slotKey': slotKey,
       'date': dateTimestamp,
-      'status': 'pending',
+      'status': AppointmentStatus.confirmed,
+      'slotLockState': 'locked',
+      'confirmedAt': FieldValue.serverTimestamp(),
+      'statusUpdatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     };
 
     await _firestore.runTransaction((tx) async {
-      final slotSnap = await tx.get(slotRef);
-      if (slotSnap.exists) {
-        throw FirebaseException(
-          plugin: 'cloud_firestore',
-          code: 'slot-unavailable',
-          message: 'Khung giờ này đã được đặt.',
-        );
-      }
-
       final userSlotSnap = await tx.get(userSlotRef);
-      if (userSlotSnap.exists) {
+      if (userSlotSnap.exists &&
+          userSlotSnap.data()?['appointmentPendingId'] != pendingRef.id) {
         throw FirebaseException(
           plugin: 'cloud_firestore',
           code: 'patient-conflict',
-          message: 'Bạn đã có lịch hẹn khác trùng khung giờ này.',
+          message: 'Bạn đã có một lịch confirmed trùng khung giờ này.',
         );
       }
 
-      tx.set(slotRef, {
-        'doctor': widget.doctor,
-        'doctorId': _doctorId,
-        'dayKey': dayKey,
-        'slotKey': slotKey,
-        'date': dateTimestamp,
-        'bookedBy': user.uid,
-        'appointmentPendingId': pendingRef.id,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
       tx.set(pendingRef, payload);
       tx.set(allRef, {...payload, 'sourcePendingId': pendingRef.id});
       tx.set(userSlotRef, {
@@ -312,11 +303,14 @@ class _BookingScreenState extends State<BookingScreen> {
     final user = _auth.currentUser;
     if (user == null) return false;
 
+    final day = AppointmentSlotsRepository.dayKey(dateTime);
+    final slot = AppointmentSlotsRepository.slotKeyFromDateTime(dateTime);
     final snapshot = await _firestore
         .collection('appointments')
         .doc(user.uid)
-        .collection('pending')
-        .where('date', isEqualTo: Timestamp.fromDate(dateTime))
+        .collection('pending_slots')
+        .where('dayKey', isEqualTo: day)
+        .where('slotKey', isEqualTo: slot)
         .limit(1)
         .get();
 
@@ -390,11 +384,8 @@ class _BookingScreenState extends State<BookingScreen> {
       await _createAppointment();
     } on FirebaseException catch (e) {
       String message = 'Không thể đặt lịch. Vui lòng thử lại.';
-      if (e.code == 'slot-unavailable') {
-        message =
-            'Khung giờ này vừa được người khác đặt, vui lòng chọn giờ khác.';
-      } else if (e.code == 'patient-conflict') {
-        message = 'Bạn đã có lịch hẹn khác trùng khung giờ này.';
+      if (e.code == 'patient-conflict') {
+        message = 'Bạn đã có một lịch confirmed trùng khung giờ này.';
       }
       if (mounted) {
         ScaffoldMessenger.of(
