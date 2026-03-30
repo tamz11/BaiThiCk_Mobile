@@ -1,0 +1,62 @@
+{
+  "doctor_001": {
+    "name": "BS. Nguyen Van Minh",
+    "type": "Cardiologist",
+    "email": "minh.timmach@doctor.vn",
+    "phone": "0903123456",
+    "address": "Benh vien Tim Ha Noi, 89 Tran Hung Dao, Hoan Kiem, Ha Noi",
+    "specification": "Chuyen khoa tim mach, tang huyet ap, roi loan nhip tim, theo doi benh tim man tinh.",
+    "openHour": "08:00",
+    "closeHour": "16:30",
+    "rating": 5,
+    "image": ""
+  },
+  "doctor_002": {
+    "name": "BS. Tran Thi Lan",
+    "type": "Dentist",
+    "email": "lan.nhakhoa@doctor.vn",
+    "phone": "0911222333",
+    "address": "Nha khoa Sai Gon Smile, 120 Nguyen Thi Minh Khai, Quan 3, TP HCM",
+    "specification": "Kham rang tong quat, dieu tri sau rang, nho rang khon, tham my rang su.",
+    "openHour": "09:00",
+    "closeHour": "19:00",
+    "rating": 4,
+    "image": ""
+  },
+  "doctor_003": {
+    "name": "BS. Le Quoc Anh",
+    "type": "Eye Special",
+    "email": "anh.mat@doctor.vn",
+    "phone": "0939888777",
+    "address": "Benh vien Mat Trung Uong, 85 Ba Trieu, Hai Ba Trung, Ha Noi",
+    "specification": "Dieu tri can thi, viem ket mac, theo doi glaucoma va benh ly day mat.",
+    "openHour": "07:30",
+    "closeHour": "16:00",
+    "rating": 5,
+    "image": ""
+  },
+  "doctor_004": {
+    "name": "BS. Pham Duc Khoa",
+    "type": "Orthopaedic",
+    "email": "khoa.coxuongkhop@doctor.vn",
+    "phone": "0977555666",
+    "address": "Trung tam Chan thuong Chinh hinh, 201B Nguyen Chi Thanh, Dong Da, Ha Noi",
+    "specification": "Chan thuong the thao, dau cot song, thoai hoa khop, phuc hoi chuc nang van dong.",
+    "openHour": "08:30",
+    "closeHour": "17:00",
+    "rating": 4,
+    "image": ""
+  },
+  "doctor_005": {
+    "name": "BS. Vo Thi Huong",
+    "type": "Paediatrician",
+    "email": "huong.nhi@doctor.vn",
+    "phone": "0909777888",
+    "address": "Benh vien Nhi Dong 2, 14 Ly Tu Trong, Quan 1, TP HCM",
+    "specification": "Theo doi tang truong, tiem chung, benh ho hap va tieu hoa o tre em.",
+    "openHour": "08:00",
+    "closeHour": "17:30",
+    "rating": 5,
+    "image": ""
+  }
+}

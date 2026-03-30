@@ -4,7 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 class RealtimeDoctorsRepository {
   RealtimeDoctorsRepository._();
 
-  static const String _databaseUrl = 'https://baithick-default-rtdb.firebaseio.com';
+  static const String _databaseUrl = 'https://noteapp-5ea9b-default-rtdb.asia-southeast1.firebasedatabase.app/';
 
   static FirebaseDatabase get _db =>
       FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL: _databaseUrl);

@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:baithick/screens/doctorProfile.dart';
 import 'package:baithick/screens/firebaseAuth.dart';
+import 'package:baithick/firebase_options.dart';
 import 'package:baithick/mainPage.dart';
 import 'package:baithick/screens/myAppointments.dart';
 import 'package:baithick/screens/userProfile.dart';
@@ -11,7 +12,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
 
