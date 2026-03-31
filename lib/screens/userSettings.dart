@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../data/google_calendar_sync_repository.dart';
 import '../firestore-data/userDetails.dart';
 
 import 'signIn.dart';
@@ -11,6 +12,31 @@ class UserSettings extends StatelessWidget {
 
   static const Color _primary = Color(0xFF4B5AB5);
   static const Color _soft = Color(0xFFE4F2FD);
+
+  Future<void> _linkCalendar(BuildContext context) async {
+    try {
+      await GoogleCalendarSyncRepository.instance
+          .linkGoogleToCurrentUserForCalendar();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Liên kết Google Calendar thành công')),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message ?? 'Không thể liên kết Google Calendar'),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể liên kết Google Calendar: ${e.toString()}'),
+        ),
+      );
+    }
+  }
 
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -108,6 +134,99 @@ class UserSettings extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          StreamBuilder<Map<String, dynamic>?>(
+            stream: GoogleCalendarSyncRepository.instance
+                .watchCurrentUserCalendarStatus(),
+            builder: (context, snapshot) {
+              final data = snapshot.data ?? const <String, dynamic>{};
+              final linked =
+                  data['calendarSyncEnabled'] == true &&
+                  data['calendarTokenStatus'] == 'ready';
+              final exchanging = data['calendarTokenStatus'] == 'exchanging';
+              final googleEmail = data['googleEmail']?.toString() ?? '';
+
+              final statusText = linked
+                  ? 'Đã liên kết với Calendar'
+                  : exchanging
+                  ? 'Đang liên kết với Calendar...'
+                  : 'Chưa liên kết với Calendar';
+
+              final statusColor = linked
+                  ? Colors.green.shade700
+                  : exchanging
+                  ? Colors.orange.shade700
+                  : Colors.grey.shade700;
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _soft),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_month, color: _primary, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Google Calendar',
+                          style: GoogleFonts.lato(
+                            color: _primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      statusText,
+                      style: GoogleFonts.lato(
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (googleEmail.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        googleEmail,
+                        style: GoogleFonts.lato(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    if (!linked && !exchanging) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 40,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _linkCalendar(context),
+                          icon: const Icon(Icons.link, size: 18),
+                          label: Text(
+                            'Liên kết với Google Calendar',
+                            style: GoogleFonts.lato(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primary,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 14),
           Material(
             color: const Color(0xFFFFECEC),
             borderRadius: BorderRadius.circular(10),
@@ -115,7 +234,10 @@ class UserSettings extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               onTap: () => _logout(context),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 11,
+                ),
                 child: Row(
                   children: [
                     const Icon(Icons.logout, color: Colors.red, size: 20),

@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../data/appointment_slots_repository.dart';
+import '../data/google_calendar_api_client.dart';
+import '../data/google_calendar_sync_repository.dart';
 import '../data/realtime_doctors_repository.dart';
 import '../model/appointment_status.dart';
 import 'myAppointments.dart';
@@ -19,6 +21,9 @@ class BookingScreen extends StatefulWidget {
 }
 
 class _BookingScreenState extends State<BookingScreen> {
+  static const Color _primary = Color(0xFF3949AB);
+  static const Color _surface = Color(0xFFF4F7FF);
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -43,6 +48,7 @@ class _BookingScreenState extends State<BookingScreen> {
   String _closeHour = '17:00';
   bool _loadingDoctorMeta = false;
   bool _loadingAvailability = false;
+  bool _isSubmitting = false;
   List<TimeOfDay> _dailySlots = const [];
   Set<String> _bookedSlotKeys = const {};
 
@@ -147,6 +153,20 @@ class _BookingScreenState extends State<BookingScreen> {
     final key = AppointmentSlotsRepository.slotKeyFromTime(slot);
     if (_bookedSlotKeys.contains(key)) return true;
     return AppointmentSlotsRepository.isPastSlot(date, slot);
+  }
+
+  String _formatSlot(TimeOfDay slot) {
+    return MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(slot, alwaysUse24HourFormat: true);
+  }
+
+  void _pickQuickSlot(TimeOfDay slot) {
+    if (_isSlotUnavailable(slot)) return;
+    setState(() {
+      _selectedTime = slot;
+      _timeController.text = _formatSlot(slot);
+    });
   }
 
   Future<void> _selectTime() async {
@@ -297,6 +317,108 @@ class _BookingScreenState extends State<BookingScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
+
+    await _syncCalendarAfterCreate(
+      pendingRef: pendingRef,
+      allRef: allRef,
+      payload: payload,
+      start: dateTime,
+    );
+  }
+
+  Future<void> _syncCalendarAfterCreate({
+    required DocumentReference<Map<String, dynamic>> pendingRef,
+    required DocumentReference<Map<String, dynamic>> allRef,
+    required Map<String, dynamic> payload,
+    required DateTime start,
+  }) async {
+    final calendarRepo = GoogleCalendarSyncRepository.instance;
+    final linked = await calendarRepo.isCalendarLinkedForCurrentUser();
+
+    if (!linked) {
+      await pendingRef.set({
+        'calendarSyncState': 'skipped',
+        'calendarSyncError': 'calendar-not-linked',
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'skipped',
+        'calendarSyncError': 'calendar-not-linked',
+      }, SetOptions(merge: true));
+      return;
+    }
+
+    final accessToken = await calendarRepo.getCalendarAccessToken();
+    if (accessToken == null || accessToken.isEmpty) {
+      await pendingRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': 'missing-access-token',
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': 'missing-access-token',
+      }, SetOptions(merge: true));
+      return;
+    }
+
+    final calendarId = await calendarRepo.getCalendarIdForCurrentUser();
+    final eventPayload = _buildCalendarEventPayload(
+      payload: payload,
+      start: start,
+    );
+
+    try {
+      final eventId = await GoogleCalendarApiClient.instance.createEvent(
+        accessToken: accessToken,
+        calendarId: calendarId,
+        event: eventPayload,
+      );
+
+      await pendingRef.set({
+        'googleEventId': eventId,
+        'calendarSyncState': 'synced',
+        'calendarSyncError': null,
+        'calendarSyncedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'googleEventId': eventId,
+        'calendarSyncState': 'synced',
+        'calendarSyncError': null,
+        'calendarSyncedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      await pendingRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': error.toString(),
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': error.toString(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  Map<String, dynamic> _buildCalendarEventPayload({
+    required Map<String, dynamic> payload,
+    required DateTime start,
+  }) {
+    final end = start.add(const Duration(hours: 1));
+    final patientName = payload['name']?.toString().trim() ?? 'Bệnh nhân';
+    final doctorName = payload['doctor']?.toString().trim() ?? widget.doctor;
+    final phone = payload['phone']?.toString().trim() ?? '';
+    final note = payload['description']?.toString().trim() ?? '';
+
+    return {
+      'summary': 'Khám với $doctorName - $patientName',
+      'description': 'SĐT: $phone\nGhi chú: $note',
+      'start': {
+        'dateTime': start.toUtc().toIso8601String(),
+        'timeZone': 'Asia/Ho_Chi_Minh',
+      },
+      'end': {
+        'dateTime': end.toUtc().toIso8601String(),
+        'timeZone': 'Asia/Ho_Chi_Minh',
+      },
+    };
   }
 
   Future<bool> _hasLegacyPendingConflict(DateTime dateTime) async {
@@ -345,6 +467,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _book() async {
+    if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null || _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -380,6 +503,10 @@ class _BookingScreenState extends State<BookingScreen> {
       return;
     }
 
+    setState(() {
+      _isSubmitting = true;
+    });
+
     try {
       await _createAppointment();
     } on FirebaseException catch (e) {
@@ -394,6 +521,12 @@ class _BookingScreenState extends State<BookingScreen> {
       }
       await _loadAvailability(_selectedDate!);
       return;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
 
     if (!mounted) return;
@@ -441,32 +574,99 @@ class _BookingScreenState extends State<BookingScreen> {
             return true;
           },
           child: ListView(
-            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
-              const Image(
-                image: AssetImage('assets/appointment.jpg'),
-                height: 250,
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF5C6BC0), Color(0xFF3949AB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(
+                            Icons.medical_services_rounded,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Đặt lịch với bác sĩ',
+                                style: GoogleFonts.lato(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                widget.doctor,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.lato(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildInfoChip(
+                          icon: Icons.schedule_rounded,
+                          label: 'Giờ khám: $_openHour - $_closeHour',
+                        ),
+                        _buildInfoChip(
+                          icon: Icons.timer_outlined,
+                          label: 'Mỗi lịch: 60 phút',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Form(
                 key: _formKey,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+                  decoration: BoxDecoration(
+                    color: _surface,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Column(
                     children: [
-                      Container(
-                        alignment: Alignment.centerLeft,
-                        padding: const EdgeInsets.only(left: 16),
-                        child: Text(
-                          'Nhập thông tin bệnh nhân',
-                          style: GoogleFonts.lato(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black54,
-                          ),
-                        ),
+                      _buildSectionTitle(
+                        title: 'Thông tin bệnh nhân',
+                        subtitle:
+                            'Điền đầy đủ để bác sĩ chuẩn bị trước buổi khám',
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 14),
                       _buildInput(
                         controller: _nameController,
                         focusNode: _f1,
@@ -482,7 +682,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           FocusScope.of(context).requestFocus(_f2);
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
                       _buildInput(
                         controller: _phoneController,
                         focusNode: _f2,
@@ -502,22 +702,27 @@ class _BookingScreenState extends State<BookingScreen> {
                           FocusScope.of(context).requestFocus(_f3);
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
                       _buildInput(
                         controller: _descriptionController,
                         focusNode: _f3,
-                        hint: 'Mô tả',
+                        hint: 'Triệu chứng/Ghi chú',
                         keyboardType: TextInputType.multiline,
-                        maxLines: null,
+                        maxLines: 3,
                         onSubmitted: () {
                           _f3.unfocus();
                           FocusScope.of(context).requestFocus(_f4);
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle(
+                        title: 'Lịch khám',
+                        subtitle: 'Chọn ngày, giờ phù hợp với bạn',
+                      ),
+                      const SizedBox(height: 14),
                       _buildInput(
                         controller: _doctorController,
-                        hint: 'Tên bác sĩ*',
+                        hint: 'Bác sĩ đã chọn',
                         readOnly: true,
                         validator: (value) {
                           if ((value ?? '').isEmpty) {
@@ -526,7 +731,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
                       _buildPickerField(
                         focusNode: _f4,
                         controller: _dateController,
@@ -544,7 +749,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           FocusScope.of(context).requestFocus(_f5);
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
                       _buildPickerField(
                         focusNode: _f5,
                         controller: _timeController,
@@ -561,12 +766,12 @@ class _BookingScreenState extends State<BookingScreen> {
                       ),
                       if (_loadingDoctorMeta || _loadingAvailability)
                         const Padding(
-                          padding: EdgeInsets.only(top: 8),
+                          padding: EdgeInsets.only(top: 10),
                           child: LinearProgressIndicator(minHeight: 3),
                         ),
                       if (_selectedDate != null && !_loadingAvailability)
                         Padding(
-                          padding: const EdgeInsets.only(top: 8, left: 12),
+                          padding: const EdgeInsets.only(top: 10),
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
@@ -574,35 +779,80 @@ class _BookingScreenState extends State<BookingScreen> {
                               style: GoogleFonts.lato(
                                 fontSize: 13,
                                 color: Colors.black54,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
                         ),
-                      const SizedBox(height: 40),
-                      SizedBox(
-                        height: 50,
-                        width: MediaQuery.of(context).size.width,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            elevation: 2,
-                            backgroundColor: Colors.indigo,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(32.0),
+                      if (_selectedDate != null &&
+                          !_loadingAvailability &&
+                          _dailySlots.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _dailySlots.take(12).map((slot) {
+                                final unavailable = _isSlotUnavailable(slot);
+                                final selected =
+                                    _selectedTime?.hour == slot.hour &&
+                                    _selectedTime?.minute == slot.minute;
+                                return ChoiceChip(
+                                  label: Text(_formatSlot(slot)),
+                                  selected: selected,
+                                  onSelected: unavailable
+                                      ? null
+                                      : (_) => _pickQuickSlot(slot),
+                                  selectedColor: _primary.withValues(
+                                    alpha: 0.18,
+                                  ),
+                                  side: BorderSide(
+                                    color: unavailable
+                                        ? Colors.grey.shade300
+                                        : _primary.withValues(alpha: 0.35),
+                                  ),
+                                );
+                              }).toList(),
                             ),
                           ),
-                          onPressed: _book,
-                          child: Text(
-                            'Đặt lịch khám',
+                        ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: 52,
+                        width: MediaQuery.of(context).size.width,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: _primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          onPressed: _isSubmitting ? null : _book,
+                          icon: _isSubmitting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.check_circle_outline_rounded),
+                          label: Text(
+                            _isSubmitting
+                                ? 'Đang đặt lịch...'
+                                : 'Xác nhận đặt lịch',
                             style: GoogleFonts.lato(
                               color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -611,6 +861,56 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoChip({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.lato(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle({required String title, required String subtitle}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.lato(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: GoogleFonts.lato(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Colors.black45,
+          ),
+        ),
+      ],
     );
   }
 
@@ -633,20 +933,35 @@ class _BookingScreenState extends State<BookingScreen> {
       readOnly: readOnly,
       onFieldSubmitted: (_) => onSubmitted?.call(),
       textInputAction: TextInputAction.next,
-      style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.bold),
+      style: GoogleFonts.lato(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: Colors.black87,
+      ),
       decoration: InputDecoration(
-        contentPadding: const EdgeInsets.only(left: 20, top: 10, bottom: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         hintText: hint,
-        border: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(90.0)),
-          borderSide: BorderSide.none,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.indigo.shade100),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.indigo.shade100),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _primary, width: 1.5),
         ),
         filled: true,
-        fillColor: Colors.grey[350],
+        fillColor: Colors.white,
         hintStyle: GoogleFonts.lato(
-          color: Colors.black26,
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
+          color: Colors.black38,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -662,7 +977,7 @@ class _BookingScreenState extends State<BookingScreen> {
     required VoidCallback onSubmitted,
   }) {
     return SizedBox(
-      height: 60,
+      height: 58,
       width: MediaQuery.of(context).size.width,
       child: Stack(
         alignment: Alignment.centerRight,
@@ -674,32 +989,43 @@ class _BookingScreenState extends State<BookingScreen> {
             readOnly: true,
             onFieldSubmitted: (_) => onSubmitted(),
             textInputAction: TextInputAction.next,
-            style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.bold),
+            style: GoogleFonts.lato(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
+            ),
             decoration: InputDecoration(
-              contentPadding: const EdgeInsets.only(
-                left: 20,
-                top: 10,
-                bottom: 10,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
               ),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(90.0)),
-                borderSide: BorderSide.none,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.indigo.shade100),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.indigo.shade100),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: _primary, width: 1.5),
               ),
               filled: true,
-              fillColor: Colors.grey[350],
+              fillColor: Colors.white,
               hintText: hint,
               hintStyle: GoogleFonts.lato(
-                color: Colors.black26,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+                color: Colors.black38,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 5.0),
+            padding: const EdgeInsets.only(right: 8),
             child: ClipOval(
               child: Material(
-                color: Colors.indigo,
+                color: _primary,
                 child: InkWell(
                   onTap: onTap,
                   child: SizedBox(
