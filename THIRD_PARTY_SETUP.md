@@ -7,6 +7,9 @@ Noi dung gom:
 - Cau hinh FlutterFire
 - Bat Email/Password Auth
 - Bat Google Auth
+- Setup Google Calendar tren Google Cloud
+- Cau hinh domain OAuth/Firebase cho web
+- Bien moi truong cho mode client-only va mode server-side
 - Tao Firestore
 - Tao Realtime Database
 - Cap nhat URL Realtime Database trong code
@@ -97,6 +100,17 @@ Bat:
 - Google
 
 Neu su dung Google Sign-In tren Android/iOS, can cau hinh them SHA va bundle settings theo huong dan Firebase.
+
+### 6.3 Authorized domains cho web
+Vao Firebase Console -> Authentication -> Settings -> Authorized domains.
+
+Them cac domain:
+- localhost
+- 127.0.0.1
+- `<your-project-id>.firebaseapp.com`
+- `<your-project-id>.web.app`
+
+Neu thieu domain, popup Google co the mo duoc nhung callback auth se loi.
 
 ---
 
@@ -276,3 +290,74 @@ Sau khi app chay, kiem tra:
 6. My Appointments hien thi danh sach pending.
 7. Cap nhat profile luu vao collection users.
 8. Man hinh Disease doc du lieu tu collection diseases.
+9. Dang nhap Google mo popup thanh cong.
+10. Settings co the lien ket Google Calendar va hien "Da lien ket voi Calendar".
+11. Dat/huy lich hen cap nhat event tren Google Calendar.
+
+---
+
+## 12) Setup Google Calendar service (web first)
+
+Phan nay mo ta mode hien tai cua project: **client-only** (khong can Firebase Blaze).
+
+### 12.1 Google Cloud: bat API va OAuth
+Vao Google Cloud Console, chon dung project dang dung cho Firebase.
+
+1. APIs & Services -> Library -> bat:
+- Google Calendar API
+
+2. APIs & Services -> OAuth consent screen:
+- Chon External (neu app cho user ben ngoai) hoac Internal (neu Workspace noi bo).
+- Dien app name, support email, developer contact.
+- Them scope:
+  - `https://www.googleapis.com/auth/calendar.events`
+- Neu dang o trang thai Testing, them email vao Test users.
+
+3. APIs & Services -> Credentials -> Create OAuth Client ID:
+- Application type: Web application
+- Authorized JavaScript origins (vi du):
+  - `http://localhost:3000`
+  - `http://127.0.0.1:3000`
+  - `https://<your-project-id>.web.app`
+  - `https://<your-project-id>.firebaseapp.com`
+- Authorized redirect URIs:
+  - `https://<your-project-id>.firebaseapp.com/__/auth/handler`
+
+Luu y: app Flutter web dang auth qua Firebase popup, nen domain va redirect URI phai khop.
+
+### 12.2 Bien moi truong (mode hien tai client-only)
+Mode hien tai **khong dung exchange token tren Cloud Functions**, vi vay:
+- Khong can `GCAL_CLIENT_ID`
+- Khong can `GCAL_CLIENT_SECRET`
+- Khong can `CALENDAR_TOKEN_SECRET`
+
+App se dung access token tu Google popup credential o phia client de goi Google Calendar REST API.
+
+### 12.3 Neu muon quay lai mode server-side (tuy chon)
+Neu doi sang mode server-side (Cloud Functions doi auth code -> refresh token):
+
+1. Project Firebase phai o goi Blaze.
+2. Set secrets cho Functions:
+
+```bash
+firebase functions:secrets:set GCAL_CLIENT_ID
+firebase functions:secrets:set GCAL_CLIENT_SECRET
+firebase functions:secrets:set CALENDAR_TOKEN_SECRET
+```
+
+3. Deploy lai Functions.
+
+Khuyen nghi: khong hardcode secret trong source code, khong commit secret vao git.
+
+### 12.4 Kiem tra sau khi setup Calendar
+1. Dang xuat va dang nhap lai bang Google.
+2. Vao Settings -> bam "Lien ket voi Google Calendar".
+3. Xac nhan trang thai doi sang "Da lien ket voi Calendar".
+4. Tao lich hen moi, kiem tra event xuat hien trong Google Calendar.
+
+### 12.5 Loi thuong gap
+- `403 insufficient authentication scopes`:
+  - Nguyen nhan: token khong co scope calendar.events.
+  - Cach xu ly: dang xuat, dang nhap lai, popup consent lai scope; dam bao OAuth consent screen da them scope.
+- Popup khong mo:
+  - Trinh duyet chan popup, hoac domain chua co trong Authorized domains.

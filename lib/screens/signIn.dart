@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../data/google_calendar_sync_repository.dart';
 import '../mainPage.dart';
 import 'register.dart';
 
@@ -56,6 +57,41 @@ class _SignInState extends State<SignIn> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _loading = true);
+    try {
+      await GoogleCalendarSyncRepository.instance
+          .signInWithGoogleAndEnableCalendar();
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => MainPage()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'google-sign-in-cancelled' ||
+          e.code == 'popup-closed-by-user') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bạn đã hủy đăng nhập Google')),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Đăng nhập Google thất bại')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể đăng nhập Google. Vui lòng thử lại.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,7 +131,10 @@ class _SignInState extends State<SignIn> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
-                      style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                       decoration: _decoration('Địa chỉ email'),
                       onFieldSubmitted: (_) {
                         _emailFocus.unfocus();
@@ -106,7 +145,9 @@ class _SignInState extends State<SignIn> {
                         if (email.isEmpty) {
                           return 'Vui lòng nhập email';
                         }
-                        if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email)) {
+                        if (!RegExp(
+                          r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+                        ).hasMatch(email)) {
                           return 'Email không hợp lệ';
                         }
                         return null;
@@ -118,7 +159,10 @@ class _SignInState extends State<SignIn> {
                       controller: _passwordController,
                       obscureText: true,
                       textInputAction: TextInputAction.done,
-                      style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                       decoration: _decoration('Mật khẩu'),
                       onFieldSubmitted: (_) {
                         _passwordFocus.unfocus();
@@ -141,13 +185,18 @@ class _SignInState extends State<SignIn> {
                           onPressed: _loading ? null : _signIn,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.indigo[900],
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(32),
+                            ),
                           ),
                           child: _loading
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
                               : Text(
                                   'Đăng nhập',
@@ -182,7 +231,7 @@ class _SignInState extends State<SignIn> {
                           _socialCircle(
                             label: 'G',
                             background: Colors.red.shade700,
-                            onTap: () {},
+                            onTap: _loading ? () {} : _signInWithGoogle,
                           ),
                           const SizedBox(width: 30),
                           _socialCircle(
@@ -208,7 +257,9 @@ class _SignInState extends State<SignIn> {
                           TextButton(
                             onPressed: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const Register()),
+                                MaterialPageRoute(
+                                  builder: (_) => const Register(),
+                                ),
                               );
                             },
                             child: Text(
@@ -257,7 +308,10 @@ class _SignInState extends State<SignIn> {
     required VoidCallback onTap,
   }) {
     return Container(
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(32)),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(32),
+      ),
       child: IconButton(
         onPressed: onTap,
         icon: Text(

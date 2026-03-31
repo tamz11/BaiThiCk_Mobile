@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../data/appointment_slots_repository.dart';
+import '../data/google_calendar_api_client.dart';
+import '../data/google_calendar_sync_repository.dart';
 import '../model/appointment_status.dart';
 
 class MyAppointmentList extends StatefulWidget {
@@ -18,6 +20,13 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   static const Color _primary = Color(0xFF4B5AB5);
   static const Color _lightCard = Color(0xFFE4F2FD);
+  final Set<String> _syncingIds = <String>{};
+  static const List<String> _statusOrder = <String>[
+    AppointmentStatus.pending,
+    AppointmentStatus.confirmed,
+    AppointmentStatus.completed,
+    AppointmentStatus.cancelled,
+  ];
 
   String _formatDate(dynamic value) {
     DateTime date;
@@ -53,6 +62,175 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return DateTime.now();
+  }
+
+  bool _canManualSyncToGoogleCalendar(String status) {
+    final normalized = AppointmentStatus.normalize(status);
+    return normalized == AppointmentStatus.pending ||
+        normalized == AppointmentStatus.confirmed;
+  }
+
+  Map<String, dynamic> _buildManualSyncCalendarEventPayload({
+    required Map<String, dynamic> data,
+    required DateTime start,
+    required String status,
+  }) {
+    final end = start.add(const Duration(hours: 1));
+    final doctor = data['doctor']?.toString().trim() ?? 'Bác sĩ';
+    final patient = data['name']?.toString().trim() ?? 'Bệnh nhân';
+    final phone = data['phone']?.toString().trim() ?? 'Chưa có';
+    final note = data['description']?.toString().trim();
+    final descriptionLines = <String>[
+      'Lịch hẹn từ ứng dụng đặt lịch khám',
+      'Trạng thái: ${AppointmentStatus.label(status)}',
+      'Bác sĩ: $doctor',
+      'Bệnh nhân: $patient',
+      'SĐT: $phone',
+      if (note != null && note.isNotEmpty) 'Ghi chú: $note',
+    ];
+
+    return {
+      'summary': '[$status] Khám với $doctor - $patient',
+      'description': descriptionLines.join('\n'),
+      'start': {
+        'dateTime': start.toUtc().toIso8601String(),
+        'timeZone': 'Asia/Ho_Chi_Minh',
+      },
+      'end': {
+        'dateTime': end.toUtc().toIso8601String(),
+        'timeZone': 'Asia/Ho_Chi_Minh',
+      },
+    };
+  }
+
+  Future<void> _manualSyncAppointmentToGoogleCalendar({
+    required String uid,
+    required String id,
+    required String status,
+    required Map<String, dynamic> data,
+  }) async {
+    final normalizedStatus = AppointmentStatus.normalize(status);
+    if (!_canManualSyncToGoogleCalendar(normalizedStatus)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Chỉ lịch Pending hoặc Confirmed mới đồng bộ được với Google Calendar.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_syncingIds.contains(id)) {
+      return;
+    }
+
+    setState(() {
+      _syncingIds.add(id);
+    });
+
+    final firestore = FirebaseFirestore.instance;
+    final pendingRef = firestore
+        .collection('appointments')
+        .doc(uid)
+        .collection('pending')
+        .doc(id);
+    final allRef = await _resolveAllRef(
+      firestore: firestore,
+      uid: uid,
+      pendingId: id,
+    );
+
+    try {
+      final calendarRepo = GoogleCalendarSyncRepository.instance;
+      final linked = await calendarRepo.isCalendarLinkedForCurrentUser();
+      if (!linked) {
+        await pendingRef.set({
+          'calendarSyncState': 'skipped',
+          'calendarSyncError': 'calendar-not-linked',
+        }, SetOptions(merge: true));
+        await allRef.set({
+          'calendarSyncState': 'skipped',
+          'calendarSyncError': 'calendar-not-linked',
+        }, SetOptions(merge: true));
+        throw Exception(
+          'Bạn chưa liên kết Google Calendar trong phần Cài đặt.',
+        );
+      }
+
+      final accessToken = await calendarRepo.getCalendarAccessToken(
+        interactive: true,
+      );
+      if (accessToken == null || accessToken.isEmpty) {
+        throw Exception('Không lấy được access token Google Calendar.');
+      }
+
+      final calendarId = await calendarRepo.getCalendarIdForCurrentUser();
+      final start = _parseDate(data['date']);
+      final payload = _buildManualSyncCalendarEventPayload(
+        data: data,
+        start: start,
+        status: normalizedStatus,
+      );
+
+      final currentEventId = data['googleEventId']?.toString().trim() ?? '';
+      var finalEventId = currentEventId;
+      if (finalEventId.isEmpty) {
+        finalEventId = await GoogleCalendarApiClient.instance.createEvent(
+          accessToken: accessToken,
+          calendarId: calendarId,
+          event: payload,
+        );
+      } else {
+        await GoogleCalendarApiClient.instance.updateEvent(
+          accessToken: accessToken,
+          calendarId: calendarId,
+          eventId: finalEventId,
+          event: payload,
+        );
+      }
+
+      await pendingRef.set({
+        'googleEventId': finalEventId,
+        'calendarSyncState': 'synced',
+        'calendarSyncError': null,
+        'calendarSyncedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'googleEventId': finalEventId,
+        'calendarSyncState': 'synced',
+        'calendarSyncError': null,
+        'calendarSyncedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã đồng bộ lịch hẹn lên Google Calendar.'),
+        ),
+      );
+    } catch (error) {
+      await pendingRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': error.toString(),
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': error.toString(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đồng bộ Calendar thất bại: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _syncingIds.remove(id);
+        });
+      }
+    }
   }
 
   Future<DocumentReference<Map<String, dynamic>>> _resolveAllRef({
@@ -206,6 +384,150 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
         'sourcePendingId': id,
       }, SetOptions(merge: true));
     });
+
+    await _syncCalendarAfterStatusChange(
+      pendingRef: pendingRef,
+      allRef: allRef,
+      data: data,
+      nextStatus: status,
+      date: date,
+    );
+  }
+
+  Future<void> _syncCalendarAfterStatusChange({
+    required DocumentReference<Map<String, dynamic>> pendingRef,
+    required DocumentReference<Map<String, dynamic>> allRef,
+    required Map<String, dynamic> data,
+    required String nextStatus,
+    required DateTime date,
+  }) async {
+    final calendarRepo = GoogleCalendarSyncRepository.instance;
+    final linked = await calendarRepo.isCalendarLinkedForCurrentUser();
+    if (!linked) {
+      await pendingRef.set({
+        'calendarSyncState': 'skipped',
+        'calendarSyncError': 'calendar-not-linked',
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'skipped',
+        'calendarSyncError': 'calendar-not-linked',
+      }, SetOptions(merge: true));
+      return;
+    }
+
+    final accessToken = await calendarRepo.getCalendarAccessToken();
+    if (accessToken == null || accessToken.isEmpty) {
+      await pendingRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': 'missing-access-token',
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': 'missing-access-token',
+      }, SetOptions(merge: true));
+      return;
+    }
+
+    final calendarId = await calendarRepo.getCalendarIdForCurrentUser();
+    final currentEventId = data['googleEventId']?.toString().trim() ?? '';
+    final normalizedStatus = AppointmentStatus.normalize(nextStatus);
+
+    try {
+      if (normalizedStatus == AppointmentStatus.cancelled ||
+          normalizedStatus == AppointmentStatus.pending) {
+        if (currentEventId.isNotEmpty) {
+          await GoogleCalendarApiClient.instance.deleteEvent(
+            accessToken: accessToken,
+            calendarId: calendarId,
+            eventId: currentEventId,
+          );
+        }
+        await pendingRef.set({
+          'googleEventId': FieldValue.delete(),
+          'calendarSyncState': 'synced',
+          'calendarSyncError': null,
+          'calendarSyncedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        await allRef.set({
+          'googleEventId': FieldValue.delete(),
+          'calendarSyncState': 'synced',
+          'calendarSyncError': null,
+          'calendarSyncedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        return;
+      }
+
+      final payload = _buildCalendarEventPayload(
+        data: data,
+        start: date,
+        status: normalizedStatus,
+      );
+      var finalEventId = currentEventId;
+      if (finalEventId.isEmpty) {
+        finalEventId = await GoogleCalendarApiClient.instance.createEvent(
+          accessToken: accessToken,
+          calendarId: calendarId,
+          event: payload,
+        );
+      } else {
+        await GoogleCalendarApiClient.instance.updateEvent(
+          accessToken: accessToken,
+          calendarId: calendarId,
+          eventId: finalEventId,
+          event: payload,
+        );
+      }
+
+      await pendingRef.set({
+        'googleEventId': finalEventId,
+        'calendarSyncState': 'synced',
+        'calendarSyncError': null,
+        'calendarSyncedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'googleEventId': finalEventId,
+        'calendarSyncState': 'synced',
+        'calendarSyncError': null,
+        'calendarSyncedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      await pendingRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': error.toString(),
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'error',
+        'calendarSyncError': error.toString(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  Map<String, dynamic> _buildCalendarEventPayload({
+    required Map<String, dynamic> data,
+    required DateTime start,
+    required String status,
+  }) {
+    final end = start.add(const Duration(hours: 1));
+    final doctor = data['doctor']?.toString().trim() ?? 'Bác sĩ';
+    final patient = data['name']?.toString().trim() ?? 'Bệnh nhân';
+    final phone = data['phone']?.toString().trim() ?? '';
+    final note = data['description']?.toString().trim() ?? '';
+    final isCompleted = status == AppointmentStatus.completed;
+
+    return {
+      'summary': isCompleted
+          ? '[Completed] Khám với $doctor - $patient'
+          : 'Khám với $doctor - $patient',
+      'description': 'SĐT: $phone\\nGhi chú: $note',
+      'start': {
+        'dateTime': start.toUtc().toIso8601String(),
+        'timeZone': 'Asia/Ho_Chi_Minh',
+      },
+      'end': {
+        'dateTime': end.toUtc().toIso8601String(),
+        'timeZone': 'Asia/Ho_Chi_Minh',
+      },
+    };
   }
 
   Future<void> _onAction({
@@ -252,6 +574,229 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
       default:
         return Colors.orange.shade700;
     }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (AppointmentStatus.normalize(status)) {
+      case AppointmentStatus.confirmed:
+        return Icons.verified_rounded;
+      case AppointmentStatus.completed:
+        return Icons.task_alt_rounded;
+      case AppointmentStatus.cancelled:
+        return Icons.cancel_rounded;
+      case AppointmentStatus.pending:
+      default:
+        return Icons.hourglass_top_rounded;
+    }
+  }
+
+  Widget _buildStatusSummaryChip({required String status, required int count}) {
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_statusIcon(status), size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            '${AppointmentStatus.label(status)}: $count',
+            style: GoogleFonts.lato(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusSectionHeader({
+    required String status,
+    required int count,
+  }) {
+    final color = _statusColor(status);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 8),
+      child: Row(
+        children: [
+          Icon(_statusIcon(status), color: color, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            AppointmentStatus.label(status),
+            style: GoogleFonts.lato(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count',
+              style: GoogleFonts.lato(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppointmentCard({
+    required User user,
+    required QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    required Map<String, dynamic> data,
+    required String status,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _lightCard,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 25,
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.event_available_rounded,
+                color: _primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data['doctor']?.toString() ?? 'Bác sĩ',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.lato(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Ngày khám: ${_formatDate(data['date'])} - Giờ: ${_formatTime(data)}',
+                    style: GoogleFonts.lato(
+                      fontSize: 14,
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _statusColor(status).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          AppointmentStatus.label(status),
+                          style: GoogleFonts.lato(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: _statusColor(status),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if ((data['name'] ?? '').toString().trim().isNotEmpty)
+                    Text(
+                      'Bệnh nhân: ${data['name']}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.lato(
+                        fontSize: 14,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          _canManualSyncToGoogleCalendar(status) &&
+                              !_syncingIds.contains(doc.id)
+                          ? () => _manualSyncAppointmentToGoogleCalendar(
+                              uid: user.uid,
+                              id: doc.id,
+                              status: status,
+                              data: data,
+                            )
+                          : null,
+                      icon: _syncingIds.contains(doc.id)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.calendar_month_outlined),
+                      label: Text(
+                        _syncingIds.contains(doc.id)
+                            ? 'Đang đồng bộ...'
+                            : 'Google Calendar',
+                        style: GoogleFonts.lato(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primary,
+                        disabledForegroundColor: Colors.black38,
+                        side: BorderSide(
+                          color: _canManualSyncToGoogleCalendar(status)
+                              ? _primary.withValues(alpha: 0.45)
+                              : Colors.black26,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              children: _buildActions(
+                uid: user.uid,
+                id: doc.id,
+                data: data,
+                status: status,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<Widget> _buildActions({
@@ -396,110 +941,76 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.only(bottom: 8),
-          itemCount: docs.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 9),
-          itemBuilder: (context, index) {
-            final doc = docs[index];
+        final grouped =
+            <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{
+              for (final status in _statusOrder)
+                status: <QueryDocumentSnapshot<Map<String, dynamic>>>[],
+            };
+
+        for (final doc in docs) {
+          final status = AppointmentStatus.normalize(
+            doc.data()['status']?.toString(),
+          );
+          grouped
+              .putIfAbsent(
+                status,
+                () => <QueryDocumentSnapshot<Map<String, dynamic>>>[],
+              )
+              .add(doc);
+        }
+
+        final sections = <Widget>[
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black12),
+            ),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _statusOrder
+                  .map(
+                    (status) => _buildStatusSummaryChip(
+                      status: status,
+                      count: grouped[status]?.length ?? 0,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ];
+
+        for (final status in _statusOrder) {
+          final sectionDocs =
+              grouped[status] ??
+              const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+          if (sectionDocs.isEmpty) continue;
+
+          sections.add(
+            _buildStatusSectionHeader(
+              status: status,
+              count: sectionDocs.length,
+            ),
+          );
+          for (final doc in sectionDocs) {
             final data = doc.data();
-            final status = AppointmentStatus.normalize(
-              data['status']?.toString(),
-            );
-            return Container(
-              decoration: BoxDecoration(
-                color: _lightCard,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.event_available_rounded,
-                        color: _primary,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            data['doctor']?.toString() ?? 'Bác sĩ',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.lato(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Ngày khám: ${_formatDate(data['date'])} - Giờ: ${_formatTime(data)}',
-                            style: GoogleFonts.lato(
-                              fontSize: 14,
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _statusColor(
-                                    status,
-                                  ).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  AppointmentStatus.label(status),
-                                  style: GoogleFonts.lato(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: _statusColor(status),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if ((data['name'] ?? '').toString().trim().isNotEmpty)
-                            Text(
-                              'Bệnh nhân: ${data['name']}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.lato(
-                                fontSize: 14,
-                                color: Colors.black54,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      children: _buildActions(
-                        uid: user.uid,
-                        id: doc.id,
-                        data: data,
-                        status: status,
-                      ),
-                    ),
-                  ],
-                ),
+            sections.add(
+              _buildAppointmentCard(
+                user: user,
+                doc: doc,
+                data: data,
+                status: status,
               ),
             );
-          },
+            sections.add(const SizedBox(height: 9));
+          }
+        }
+
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 8),
+          children: sections,
         );
       },
     );
