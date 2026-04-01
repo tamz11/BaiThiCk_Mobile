@@ -6,19 +6,91 @@ import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
 import 'bookingScreen.dart';
 
+// ─────────────────────────────────────────────
+// Màn hình chi tiết bác sĩ
+// ─────────────────────────────────────────────
 class DoctorProfile extends StatelessWidget {
   const DoctorProfile({super.key, this.doctor = ''});
 
-  static const Color _primary = Colors.indigo;
-  static const Color _accent = Colors.indigoAccent;
+  static const Color _primary = Color(0xFF4B5AB5);
+  static const Color _accent = Color(0xFF7986CB);
 
   final String doctor;
 
-  Future<void> _launchCaller(String phone) async {
+  Future<void> _dial(String phone) async {
     final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _mail(String email) async {
+    final uri = Uri.parse('mailto:$email');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  // ── Ngôi sao đánh giá ────────────────────────────────────────────────────
+  Widget _buildStars(int rating) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(5, (i) {
+        return Icon(
+          i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+          color: i < rating ? _accent : Colors.black12,
+          size: 28,
+        );
+      }),
+    );
+  }
+
+  // ── Hàng thông tin (icon + text) ─────────────────────────────────────────
+  Widget _infoRow({
+    required IconData icon,
+    required String text,
+    VoidCallback? onTap,
+    Color? textColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: _primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                text,
+                style: GoogleFonts.lato(
+                  fontSize: 15,
+                  color: textColor ?? Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Nhãn thông tin dạng chip ──────────────────────────────────────────────
+  Widget _infoBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: _primary.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.lato(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: _primary,
+        ),
+      ),
+    );
   }
 
   @override
@@ -32,206 +104,307 @@ class DoctorProfile extends StatelessWidget {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            final fromRealtime = snapshot.data ?? const [];
+
+            // Tìm bác sĩ trong Realtime DB, fallback sang mock
+            final realtimeList = snapshot.data ?? const [];
             final key = doctor.trim().toLowerCase();
-            final matched = fromRealtime.where((d) {
-              final name = (d['name'] ?? '').toString().trim().toLowerCase();
-              return name == key;
-            }).toList();
-            final data = matched.isNotEmpty ? matched.first : doctorByName(doctor);
+            final matched = realtimeList.where(
+              (d) => (d['name'] ?? '').toString().trim().toLowerCase() == key,
+            );
+            final data = matched.isNotEmpty
+                ? matched.first
+                : doctorByName(doctor);
+
             if (data == null) {
-              return const Center(child: Text('Không tìm thấy bác sĩ'));
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.person_off_outlined,
+                      size: 64,
+                      color: Color(0xFFD0D5E8),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Không tìm thấy bác sĩ',
+                      style: GoogleFonts.lato(
+                        fontSize: 16,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
             }
-            final rating = (data['rating'] is num) ? (data['rating'] as num).toInt().clamp(0, 5) : 0;
+
+            final name = data['name']?.toString() ?? 'Bác sĩ';
+            final type = data['type']?.toString() ?? '';
+            final phone = data['phone']?.toString() ?? '';
+            final email = data['email']?.toString() ?? '';
+            final address = data['address']?.toString() ?? '';
+            final spec = data['specification']?.toString() ?? '';
+            final open = data['openHour']?.toString() ?? '';
+            final close = data['closeHour']?.toString() ?? '';
+            final image = data['image']?.toString() ?? '';
+            final rating = (data['rating'] is num)
+                ? (data['rating'] as num).toInt().clamp(0, 5)
+                : 0;
+
             return NotificationListener<OverscrollIndicatorNotification>(
-              onNotification: (notification) {
-                notification.disallowIndicator();
+              onNotification: (n) {
+                n.disallowIndicator();
                 return true;
               },
-              child: ListView(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 5),
-                    child: Column(
-                      children: <Widget>[
-                        Container(
-                          alignment: Alignment.centerLeft,
-                          height: 50,
-                          width: MediaQuery.of(context).size.width,
-                          padding: const EdgeInsets.only(left: 5),
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.chevron_left_sharp,
-                              color: _primary,
-                              size: 30,
-                            ),
-                            onPressed: () => Navigator.pop(context),
+              child: CustomScrollView(
+                slivers: [
+                  // ── SliverAppBar với gradient ─────────────────────────────
+                  SliverAppBar(
+                    expandedHeight: 220,
+                    pinned: true,
+                    backgroundColor: Colors.white,
+                    surfaceTintColor: Colors.white,
+                    elevation: 0,
+                    leading: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: _primary,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              _primary.withOpacity(0.08),
+                              _accent.withOpacity(0.14),
+                            ],
                           ),
                         ),
-                        CircleAvatar(
-                          backgroundImage: (data['image']?.toString().isNotEmpty ?? false)
-                              ? NetworkImage(data['image'].toString())
-                              : null,
-                          radius: 80,
-                          child: (data['image']?.toString().isNotEmpty ?? false) ? null : const Icon(Icons.person, size: 64),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          data['name']?.toString() ?? 'Bác sĩ',
-                          style: GoogleFonts.lato(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          data['type']?.toString() ?? '',
-                          style: GoogleFonts.lato(
-                            fontSize: 18,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
+                        child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            for (var i = 0; i < rating; i++)
-                              const Icon(
-                                Icons.star_rounded,
-                                color: _accent,
-                                size: 30,
-                              ),
-                            if (5 - rating > 0)
-                              for (var i = 0; i < 5 - rating; i++)
-                                const Icon(
-                                  Icons.star_rounded,
-                                  color: Colors.black12,
-                                  size: 30,
+                            const SizedBox(height: 40),
+                            // Avatar
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 4,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _primary.withOpacity(0.20),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 52,
+                                backgroundColor: Colors.white,
+                                backgroundImage: image.isNotEmpty
+                                    ? NetworkImage(image)
+                                    : null,
+                                child: image.isNotEmpty
+                                    ? null
+                                    : Icon(
+                                        Icons.person_rounded,
+                                        size: 50,
+                                        color: _primary,
+                                      ),
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        Container(
-                          padding: const EdgeInsets.only(left: 22, right: 22),
-                          alignment: Alignment.center,
-                          child: Text(
-                            data['specification']?.toString() ?? '',
+                      ),
+                    ),
+                  ),
+
+                  // ── Nội dung chi tiết ─────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+                      child: Column(
+                        children: [
+                          // Tên
+                          Text(
+                            name,
                             textAlign: TextAlign.center,
                             style: GoogleFonts.lato(
-                              fontSize: 14,
-                              color: Colors.black54,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black87,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          width: MediaQuery.of(context).size.width,
-                          margin: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(width: 15),
-                              const Icon(Icons.place_outlined),
-                              const SizedBox(width: 20),
-                              Expanded(
-                                child: Text(
-                                  data['address']?.toString() ?? '',
-                                  style: GoogleFonts.lato(fontSize: 16),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                            ],
+                          const SizedBox(height: 8),
+
+                          // Badge chuyên khoa
+                          if (type.isNotEmpty) _infoBadge(type),
+
+                          const SizedBox(height: 12),
+
+                          // Đánh giá sao
+                          _buildStars(rating),
+
+                          const SizedBox(height: 6),
+                          Text(
+                            '$rating / 5',
+                            style: GoogleFonts.lato(
+                              fontSize: 13,
+                              color: Colors.black38,
+                            ),
                           ),
-                        ),
-                        Container(
-                          height: MediaQuery.of(context).size.height / 12,
-                          margin: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 15),
-                              const Icon(Icons.phone_in_talk),
-                              const SizedBox(width: 11),
-                              TextButton(
-                                onPressed: () => _launchCaller(data['phone']?.toString() ?? ''),
-                                child: Text(
-                                  data['phone']?.toString() ?? '',
-                                  style: GoogleFonts.lato(fontSize: 16, color: Colors.blue),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 15),
-                              const Icon(Icons.access_time_rounded),
-                              const SizedBox(width: 20),
-                              Text(
-                                'Giờ làm việc',
-                                style: GoogleFonts.lato(fontSize: 16),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 10),
-                          padding: const EdgeInsets.only(left: 60),
-                          child: Row(
-                            children: [
-                              Text(
-                                'Hôm nay:',
+
+                          const SizedBox(height: 20),
+                          const Divider(),
+
+                          // Mô tả chuyên môn
+                          if (spec.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Chuyên môn',
                                 style: GoogleFonts.lato(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.black45,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF4F6FF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                spec,
+                                style: GoogleFonts.lato(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // Thông tin liên hệ & thời gian
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Thông tin',
+                              style: GoogleFonts.lato(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black45,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFEEEEEE),
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Column(
+                              children: [
+                                if (address.isNotEmpty)
+                                  _infoRow(
+                                    icon: Icons.place_outlined,
+                                    text: address,
+                                  ),
+                                if (phone.isNotEmpty) ...[
+                                  const Divider(
+                                    height: 1,
+                                    indent: 20,
+                                    endIndent: 20,
+                                  ),
+                                  _infoRow(
+                                    icon: Icons.phone_in_talk_rounded,
+                                    text: phone,
+                                    textColor: Colors.blue[700],
+                                    onTap: () => _dial(phone),
+                                  ),
+                                ],
+                                if (email.isNotEmpty) ...[
+                                  const Divider(
+                                    height: 1,
+                                    indent: 20,
+                                    endIndent: 20,
+                                  ),
+                                  _infoRow(
+                                    icon: Icons.email_outlined,
+                                    text: email,
+                                    textColor: Colors.blue[700],
+                                    onTap: () => _mail(email),
+                                  ),
+                                ],
+                                if (open.isNotEmpty && close.isNotEmpty) ...[
+                                  const Divider(
+                                    height: 1,
+                                    indent: 20,
+                                    endIndent: 20,
+                                  ),
+                                  _infoRow(
+                                    icon: Icons.access_time_rounded,
+                                    text: 'Hôm nay: $open – $close',
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          // Nút đặt lịch khám
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(
+                                Icons.calendar_month_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              label: Text(
+                                'Đặt lịch khám',
+                                style: GoogleFonts.lato(
+                                  color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Text(
-                                '${data['openHour'] ?? ''} - ${data['closeHour'] ?? ''}',
-                                style: GoogleFonts.lato(fontSize: 17),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primary,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 50),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 30),
-                          height: 50,
-                          width: MediaQuery.of(context).size.width,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              elevation: 2,
-                              backgroundColor: _primary.withValues(alpha: 0.9),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(32.0),
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
+                              onPressed: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => BookingScreen(
-                                    doctor: data['name']?.toString() ?? '',
-                                  ),
+                                  builder: (_) => BookingScreen(doctor: name),
                                 ),
-                              );
-                            },
-                            child: Text(
-                              'Đặt lịch khám',
-                              style: GoogleFonts.lato(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 40),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
