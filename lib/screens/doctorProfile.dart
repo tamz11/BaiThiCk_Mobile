@@ -10,12 +10,13 @@ import 'bookingScreen.dart';
 // Màn hình chi tiết bác sĩ
 // ─────────────────────────────────────────────
 class DoctorProfile extends StatelessWidget {
-  const DoctorProfile({super.key, this.doctor = ''});
+  const DoctorProfile({super.key, this.doctor = '', this.doctorData});
 
   static const Color _primary = Color(0xFF4B5AB5);
   static const Color _accent = Color(0xFF7986CB);
 
   final String doctor;
+  final Map<String, dynamic>? doctorData;
 
   Future<void> _dial(String phone) async {
     final uri = Uri.parse('tel:$phone');
@@ -98,23 +99,16 @@ class DoctorProfile extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: StreamBuilder<List<Map<String, dynamic>>>(
-          stream: RealtimeDoctorsRepository.streamDoctors(),
+        child: FutureBuilder<Map<String, dynamic>?>(
+          future: RealtimeDoctorsRepository.fetchDoctorByIdentity(
+            id: doctorData?['id']?.toString(),
+            name: doctorData?['name']?.toString() ?? doctor,
+          ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-
-            // Tìm bác sĩ trong Realtime DB, fallback sang mock
-            final realtimeList = snapshot.data ?? const [];
-            final key = doctor.trim().toLowerCase();
-            final matched = realtimeList.where(
-              (d) => (d['name'] ?? '').toString().trim().toLowerCase() == key,
-            );
-            final data = matched.isNotEmpty
-                ? matched.first
-                : doctorByName(doctor);
-
+            final data = snapshot.data ?? doctorData ?? doctorByName(doctor);
             if (data == null) {
               return Center(
                 child: Column(
@@ -398,7 +392,10 @@ class DoctorProfile extends StatelessWidget {
                               onPressed: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => BookingScreen(doctor: name),
+                                  builder: (context) => BookingScreen(
+                                    doctor: data['name']?.toString() ?? '',
+                                    doctorData: data,
+                                  ),
                                 ),
                               ),
                             ),

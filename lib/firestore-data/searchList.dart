@@ -154,6 +154,7 @@ class SearchList extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
         final raw = snapshot.data ?? const [];
         final source = raw.isNotEmpty ? raw : mockDoctors;
         final filtered = _filter(source);
@@ -162,6 +163,7 @@ class SearchList extends StatelessWidget {
 
         return Scrollbar(
           child: ListView.separated(
+
             padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
             itemCount: filtered.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),

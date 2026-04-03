@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'google_calendar_api_client.dart';
@@ -50,7 +51,12 @@ class GoogleCalendarSyncRepository {
       return userCredential;
     }
 
-    final GoogleSignInAccount? account = await _googleSignIn.signIn();
+    GoogleSignInAccount? account;
+    try {
+      account = await _googleSignIn.signIn();
+    } on PlatformException catch (e) {
+      throw _mapGoogleSignInPlatformException(e);
+    }
     if (account == null) {
       throw FirebaseAuthException(
         code: 'google-sign-in-cancelled',
@@ -171,7 +177,12 @@ class GoogleCalendarSyncRepository {
       return;
     }
 
-    final GoogleSignInAccount? account = await _googleSignIn.signIn();
+    GoogleSignInAccount? account;
+    try {
+      account = await _googleSignIn.signIn();
+    } on PlatformException catch (e) {
+      throw _mapGoogleSignInPlatformException(e);
+    }
     if (account == null) {
       throw FirebaseAuthException(
         code: 'google-link-cancelled',
@@ -329,7 +340,39 @@ class GoogleCalendarSyncRepository {
       return null;
     }
 
-    return _googleSignIn.signIn();
+    try {
+      return _googleSignIn.signIn();
+    } on PlatformException catch (e) {
+      throw _mapGoogleSignInPlatformException(e);
+    }
+  }
+
+  FirebaseAuthException _mapGoogleSignInPlatformException(
+    PlatformException e,
+  ) {
+    final raw = '${e.code} ${e.message ?? ''} ${e.details ?? ''}'.toLowerCase();
+    final isApi10 = raw.contains('sign_in_failed') && raw.contains('api: 10');
+    if (isApi10) {
+      return FirebaseAuthException(
+        code: 'google-sign-in-config-error',
+        message:
+            'Google Sign-In Android chưa cấu hình đúng (ApiException 10). '
+            'Hãy thêm SHA-1/SHA-256 của debug keystore vào Firebase Android app '
+            '(package com.example.baithick), sau đó tải lại google-services.json.',
+      );
+    }
+
+    if (raw.contains('network_error')) {
+      return FirebaseAuthException(
+        code: 'network-error',
+        message: 'Lỗi mạng khi đăng nhập Google. Vui lòng kiểm tra kết nối.',
+      );
+    }
+
+    return FirebaseAuthException(
+      code: 'google-sign-in-failed',
+      message: 'Không thể đăng nhập Google. ${e.message ?? ''}'.trim(),
+    );
   }
 
   Future<UserCredential> _signInWithCredentialForConflict(
