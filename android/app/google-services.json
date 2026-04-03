@@ -1,148 +1,41 @@
 {
   "project_info": {
-    "project_number": "579685954133",
-    "project_id": "noteapp-5ea9b",
-    "storage_bucket": "noteapp-5ea9b.firebasestorage.app"
+    "project_number": "892439469312",
+    "firebase_url": "https://baithick-default-rtdb.firebaseio.com",
+    "project_id": "baithick",
+    "storage_bucket": "baithick.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:579685954133:android:f9b80bca8dd3ab435a9adc",
+        "mobilesdk_app_id": "1:892439469312:android:f4573c4c904b0dfa11e7e5",
         "android_client_info": {
           "package_name": "com.example.baithick"
         }
       },
       "oauth_client": [
         {
-          "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
+          "client_id": "892439469312-jaa9rl4627talfvbnqmjr44304ot1095.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyB4Gr6pMVutC7mVo4V9hMERLIYqlgNvK5Q"
+          "current_key": "AIzaSyDLLZscSBliJJDU3r9CJWxfFCI3QJRdwwo"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
+              "client_id": "892439469312-jaa9rl4627talfvbnqmjr44304ot1095.apps.googleusercontent.com",
               "client_type": 3
             },
             {
-              "client_id": "579685954133-1vk5opptupftqknul8q3d0bqjo8j9t9q.apps.googleusercontent.com",
+              "client_id": "892439469312-hrdb68p3h3oush7uadksgsho953hn7ra.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.smartnote"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:579685954133:android:9bf06b5acd94da5d5a9adc",
-        "android_client_info": {
-          "package_name": "com.example.flutter_application_1"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyB4Gr6pMVutC7mVo4V9hMERLIYqlgNvK5Q"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "579685954133-1vk5opptupftqknul8q3d0bqjo8j9t9q.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.smartnote"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:579685954133:android:0c8d4afb544e3ef45a9adc",
-        "android_client_info": {
-          "package_name": "com.example.noteapp"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyB4Gr6pMVutC7mVo4V9hMERLIYqlgNvK5Q"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "579685954133-1vk5opptupftqknul8q3d0bqjo8j9t9q.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.smartnote"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:579685954133:android:5bcecce03df653895a9adc",
-        "android_client_info": {
-          "package_name": "com.example.smartnote"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyB4Gr6pMVutC7mVo4V9hMERLIYqlgNvK5Q"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "579685954133-gsjod5agecdqqn5tps12td9qb93ijkjd.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "579685954133-1vk5opptupftqknul8q3d0bqjo8j9t9q.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.smartnote"
+                "bundle_id": "com.example.baithick"
               }
             }
           ]

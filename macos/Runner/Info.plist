@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Ứng dụng cần vị trí để hiển thị khu vực và nhiệt độ hiện tại.</string>
 </dict>
 </plist>

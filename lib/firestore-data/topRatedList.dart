@@ -16,13 +16,15 @@ class TopRatedList extends StatefulWidget {
 class _TopRatedListState extends State<TopRatedList> {
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: RealtimeDoctorsRepository.streamDoctors(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: RealtimeDoctorsRepository.fetchDoctors(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final fromRealtime = List<Map<String, dynamic>>.from(snapshot.data ?? const []);
+        final fromRealtime = snapshot.hasError
+            ? <Map<String, dynamic>>[]
+            : List<Map<String, dynamic>>.from(snapshot.data ?? const []);
         fromRealtime.sort((a, b) {
           final ar = (a['rating'] is num) ? (a['rating'] as num).toDouble() : 0;
           final br = (b['rating'] is num) ? (b['rating'] as num).toDouble() : 0;
@@ -58,6 +60,7 @@ class _TopRatedListState extends State<TopRatedList> {
                         MaterialPageRoute(
                           builder: (context) => DoctorProfile(
                             doctor: data['name']?.toString() ?? '',
+                            doctorData: data,
                           ),
                         ),
                       );

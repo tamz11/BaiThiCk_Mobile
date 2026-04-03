@@ -12,9 +12,10 @@ import '../model/appointment_status.dart';
 import 'myAppointments.dart';
 
 class BookingScreen extends StatefulWidget {
-  const BookingScreen({super.key, this.doctor = ''});
+  const BookingScreen({super.key, this.doctor = '', this.doctorData});
 
   final String doctor;
+  final Map<String, dynamic>? doctorData;
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -50,13 +51,26 @@ class _BookingScreenState extends State<BookingScreen> {
   bool _loadingAvailability = false;
   bool _isSubmitting = false;
   List<TimeOfDay> _dailySlots = const [];
+  Set<String> _doctorBookedSlotKeys = const {};
   Set<String> _bookedSlotKeys = const {};
 
   @override
   void initState() {
     super.initState();
-    _doctorController = TextEditingController(text: widget.doctor);
-    _doctorId = AppointmentSlotsRepository.normalizeDoctorId(widget.doctor);
+    final presetName = widget.doctorData?['name']?.toString().trim();
+    _doctorController = TextEditingController(
+      text: (presetName != null && presetName.isNotEmpty) ? presetName : widget.doctor,
+    );
+    _doctorId = AppointmentSlotsRepository.normalizeDoctorId(
+      _doctorController.text,
+      explicitId: widget.doctorData?['id']?.toString(),
+    );
+    _openHour = widget.doctorData?['openHour']?.toString().trim().isNotEmpty == true
+        ? widget.doctorData!['openHour'].toString().trim()
+        : _openHour;
+    _closeHour = widget.doctorData?['closeHour']?.toString().trim().isNotEmpty == true
+        ? widget.doctorData!['closeHour'].toString().trim()
+        : _closeHour;
     _initDoctorMeta();
   }
 
@@ -66,13 +80,14 @@ class _BookingScreenState extends State<BookingScreen> {
     });
 
     try {
-      final doctor = await RealtimeDoctorsRepository.fetchDoctorByExactName(
-        widget.doctor,
+      final doctor = await RealtimeDoctorsRepository.fetchDoctorByIdentity(
+        id: widget.doctorData?['id']?.toString(),
+        name: _doctorController.text,
       );
       if (!mounted) return;
       setState(() {
         _doctorId = AppointmentSlotsRepository.normalizeDoctorId(
-          widget.doctor,
+          _doctorController.text,
           explicitId: doctor?['id']?.toString(),
         );
         _openHour = doctor?['openHour']?.toString().trim().isNotEmpty == true
@@ -116,34 +131,57 @@ class _BookingScreenState extends State<BookingScreen> {
       _loadingAvailability = true;
     });
 
-    final user = _auth.currentUser;
-    if (user == null) {
+    try {
+      final slots = AppointmentSlotsRepository.buildDailySlots(
+        date: date,
+        openHour: _openHour,
+        closeHour: _closeHour,
+      );
+      Set<String> doctorBooked = const {};
+      if (_doctorId.trim().isNotEmpty) {
+        doctorBooked = await AppointmentSlotsRepository.fetchBookedSlotKeys(
+          firestore: _firestore,
+          doctorId: _doctorId,
+          date: date,
+        );
+      }
+
+      final user = _auth.currentUser;
+      Set<String> userBooked = const {};
+      if (user != null) {
+        userBooked = await AppointmentSlotsRepository.fetchUserConfirmedSlotKeys(
+          firestore: _firestore,
+          uid: user.uid,
+          date: date,
+        );
+      }
+
       if (!mounted) return;
       setState(() {
-        _dailySlots = const [];
-        _bookedSlotKeys = const {};
-        _loadingAvailability = false;
+        _dailySlots = slots;
+        _doctorBookedSlotKeys = doctorBooked;
+        _bookedSlotKeys = userBooked;
       });
-      return;
+    } catch (_) {
+      final slots = AppointmentSlotsRepository.buildDailySlots(
+        date: date,
+        openHour: _openHour,
+        closeHour: _closeHour,
+      );
+      if (!mounted) return;
+      // Fall back to showing generated slots when Firestore read fails.
+      setState(() {
+        _dailySlots = slots;
+        _doctorBookedSlotKeys = const {};
+        _bookedSlotKeys = const {};
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingAvailability = false;
+        });
+      }
     }
-
-    final slots = AppointmentSlotsRepository.buildDailySlots(
-      date: date,
-      openHour: _openHour,
-      closeHour: _closeHour,
-    );
-    final booked = await AppointmentSlotsRepository.fetchUserConfirmedSlotKeys(
-      firestore: _firestore,
-      uid: user.uid,
-      date: date,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      _dailySlots = slots;
-      _bookedSlotKeys = booked;
-      _loadingAvailability = false;
-    });
   }
 
   bool _isSlotUnavailable(TimeOfDay slot) {
@@ -151,6 +189,7 @@ class _BookingScreenState extends State<BookingScreen> {
     if (date == null) return true;
 
     final key = AppointmentSlotsRepository.slotKeyFromTime(slot);
+    if (_doctorBookedSlotKeys.contains(key)) return true;
     if (_bookedSlotKeys.contains(key)) return true;
     return AppointmentSlotsRepository.isPastSlot(date, slot);
   }
@@ -272,11 +311,6 @@ class _BookingScreenState extends State<BookingScreen> {
         .doc(user.uid)
         .collection('all')
         .doc(pendingRef.id);
-    final userSlotRef = _firestore
-        .collection('appointments')
-        .doc(user.uid)
-        .collection('pending_slots')
-        .doc('${dayKey}_$slotKey');
 
     final payload = {
       'name': _nameController.text.trim(),
@@ -295,27 +329,8 @@ class _BookingScreenState extends State<BookingScreen> {
     };
 
     await _firestore.runTransaction((tx) async {
-      final userSlotSnap = await tx.get(userSlotRef);
-      if (userSlotSnap.exists &&
-          userSlotSnap.data()?['appointmentPendingId'] != pendingRef.id) {
-        throw FirebaseException(
-          plugin: 'cloud_firestore',
-          code: 'patient-conflict',
-          message: 'Bạn đã có một lịch confirmed trùng khung giờ này.',
-        );
-      }
-
       tx.set(pendingRef, payload);
       tx.set(allRef, {...payload, 'sourcePendingId': pendingRef.id});
-      tx.set(userSlotRef, {
-        'uid': user.uid,
-        'doctorId': _doctorId,
-        'dayKey': dayKey,
-        'slotKey': slotKey,
-        'date': dateTimestamp,
-        'appointmentPendingId': pendingRef.id,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
     });
 
     await _syncCalendarAfterCreate(
@@ -427,16 +442,28 @@ class _BookingScreenState extends State<BookingScreen> {
 
     final day = AppointmentSlotsRepository.dayKey(dateTime);
     final slot = AppointmentSlotsRepository.slotKeyFromDateTime(dateTime);
-    final snapshot = await _firestore
-        .collection('appointments')
-        .doc(user.uid)
-        .collection('pending_slots')
-        .where('dayKey', isEqualTo: day)
-        .where('slotKey', isEqualTo: slot)
-        .limit(1)
-        .get();
+    try {
+      final snapshot = await _firestore
+          .collection('appointments')
+          .doc(user.uid)
+          .collection('pending')
+          .where('dayKey', isEqualTo: day)
+          .where('slotKey', isEqualTo: slot)
+          .where('status', whereIn: [
+            AppointmentStatus.pending,
+            AppointmentStatus.confirmed,
+          ])
+          .limit(1)
+          .get();
 
-    return snapshot.docs.isNotEmpty;
+      return snapshot.docs.isNotEmpty;
+    } on FirebaseException catch (e) {
+      // Some rule sets do not expose auxiliary slot collections; do not block booking precheck.
+      if (e.code == 'permission-denied') {
+        return false;
+      }
+      rethrow;
+    }
   }
 
   void _showAlertDialog() {
@@ -469,6 +496,12 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _book() async {
     if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
+    if (_auth.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập để đặt lịch khám')),
+      );
+      return;
+    }
     if (_selectedDate == null || _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng chọn ngày và giờ khám')),
@@ -493,31 +526,41 @@ class _BookingScreenState extends State<BookingScreen> {
       _selectedTime!.hour,
       _selectedTime!.minute,
     );
-    if (await _hasLegacyPendingConflict(selectedDateTime)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bạn đã có lịch hẹn khác trùng khung giờ này.'),
-        ),
-      );
-      return;
-    }
 
     setState(() {
       _isSubmitting = true;
     });
 
     try {
+      if (await _hasLegacyPendingConflict(selectedDateTime)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bạn đã có lịch hẹn khác trùng khung giờ này.'),
+          ),
+        );
+        return;
+      }
       await _createAppointment();
     } on FirebaseException catch (e) {
       String message = 'Không thể đặt lịch. Vui lòng thử lại.';
       if (e.code == 'patient-conflict') {
         message = 'Bạn đã có một lịch confirmed trùng khung giờ này.';
+      } else if (e.code == 'permission-denied') {
+        message = 'Không có quyền ghi lịch hẹn. Vui lòng kiểm tra Firestore Rules.';
       }
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
+      }
+      await _loadAvailability(_selectedDate!);
+      return;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đặt lịch thất bại: $e')),
+        );
       }
       await _loadAvailability(_selectedDate!);
       return;

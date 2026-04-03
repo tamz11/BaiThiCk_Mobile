@@ -13,6 +13,30 @@ class ExploreList extends StatelessWidget {
 
   final String type;
 
+  String _normalizeVietnamese(String input) {
+    final source = input.trim().toLowerCase();
+    if (source.isEmpty) return '';
+    const from = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+    const to = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+    final out = StringBuffer();
+    for (final rune in source.runes) {
+      final ch = String.fromCharCode(rune);
+      final idx = from.indexOf(ch);
+      out.write(idx >= 0 ? to[idx] : ch);
+    }
+    return out.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _canonicalType(String raw) {
+    final t = _normalizeVietnamese(raw);
+    if (t.contains('tim')) return 'tim_mach';
+    if (t.contains('rang') || t.contains('nha') || t.contains('ham')) return 'rang_ham_mat';
+    if (t == 'mat' || t.contains('eye')) return 'mat';
+    if (t.contains('co xuong') || t.contains('khop') || t.contains('orthopaedic')) return 'co_xuong_khop';
+    if (t.contains('nhi') || t.contains('tre') || t.contains('paediatric')) return 'nhi_khoa';
+    return t;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,16 +54,19 @@ class ExploreList extends StatelessWidget {
           ),
         ),
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: RealtimeDoctorsRepository.streamDoctors(),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: RealtimeDoctorsRepository.fetchDoctors(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final fromRealtime = snapshot.data ?? const [];
+          final fromRealtime = snapshot.hasError
+              ? <Map<String, dynamic>>[]
+              : List<Map<String, dynamic>>.from(snapshot.data ?? const []);
+          final targetType = _canonicalType(type);
           final filteredByType = fromRealtime.where((d) {
-            final doctorType = (d['type'] ?? '').toString().trim().toLowerCase();
-            return doctorType == type.trim().toLowerCase();
+            final doctorType = _canonicalType((d['type'] ?? '').toString());
+            return doctorType == targetType;
           }).toList();
           final source = filteredByType.isNotEmpty ? filteredByType : doctorsByType(type);
           if (source.isEmpty) {
@@ -48,7 +75,7 @@ class ExploreList extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
             itemCount: source.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            separatorBuilder: (_, index) => const SizedBox(height: 6),
             itemBuilder: (context, index) {
               final data = source[index];
               return Material(
@@ -83,7 +110,15 @@ class ExploreList extends StatelessWidget {
                     ],
                   ),
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => DoctorProfile(doctor: data['name']?.toString() ?? '')));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DoctorProfile(
+                          doctor: data['name']?.toString() ?? '',
+                          doctorData: data,
+                        ),
+                      ),
+                    );
                   },
                 ),
               );

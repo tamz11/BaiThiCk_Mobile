@@ -1,24 +1,28 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 
 class RealtimeDoctorsRepository {
   RealtimeDoctorsRepository._();
 
-  static const String _databaseUrl = 'https://noteapp-5ea9b-default-rtdb.asia-southeast1.firebasedatabase.app/';
+  static const String _databaseUrl = 'https://baithick-default-rtdb.firebaseio.com/';
+  static Uri get _restRoot => Uri.parse('$_databaseUrl.json');
 
-  static FirebaseDatabase get _db =>
-      FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL: _databaseUrl);
-
-  static DatabaseReference get _ref => _db.ref();
-
-  static Stream<List<Map<String, dynamic>>> streamDoctors() {
-    return _ref.onValue.map(_mapDoctorsFromEvent);
+  static Stream<List<Map<String, dynamic>>> streamDoctors() async* {
+    yield await fetchDoctors();
+    yield* Stream<List<Map<String, dynamic>>>.periodic(
+      const Duration(seconds: 20),
+    ).asyncMap((_) => fetchDoctors());
   }
 
   // API-like one-shot fetch.
   static Future<List<Map<String, dynamic>>> fetchDoctors() async {
-    final snapshot = await _ref.get();
-    return _mapDoctorsFromSnapshot(snapshot);
+    final response = await http.get(_restRoot);
+    if (response.statusCode >= 400) {
+      throw StateError('Realtime doctors fetch failed: ${response.statusCode}');
+    }
+    final raw = jsonDecode(response.body);
+    return _mapDoctorsFromRawValue(raw);
   }
 
   static Future<List<Map<String, dynamic>>> searchDoctors(String keyword) async {
@@ -52,6 +56,49 @@ class RealtimeDoctorsRepository {
     return null;
   }
 
+  static Future<Map<String, dynamic>?> fetchDoctorById(String id) async {
+    final key = id.trim().toLowerCase();
+    if (key.isEmpty) return null;
+    final all = await fetchDoctors();
+    for (final doctor in all) {
+      final doctorId = (doctor['id'] ?? '').toString().trim().toLowerCase();
+      if (doctorId == key) return doctor;
+    }
+    return null;
+  }
+
+  static Future<Map<String, dynamic>?> fetchDoctorByNameFlexible(String name) async {
+    final key = _normalizeVietnamese(name);
+    if (key.isEmpty) return null;
+    final all = await fetchDoctors();
+
+    for (final doctor in all) {
+      final doctorName = _normalizeVietnamese((doctor['name'] ?? '').toString());
+      if (doctorName == key) return doctor;
+    }
+
+    for (final doctor in all) {
+      final doctorName = _normalizeVietnamese((doctor['name'] ?? '').toString());
+      if (doctorName.contains(key) || key.contains(doctorName)) return doctor;
+    }
+    return null;
+  }
+
+  static Future<Map<String, dynamic>?> fetchDoctorByIdentity({
+    String? id,
+    String? name,
+  }) async {
+    if (id != null && id.trim().isNotEmpty) {
+      final byId = await fetchDoctorById(id);
+      if (byId != null) return byId;
+    }
+    if (name != null && name.trim().isNotEmpty) {
+      final byName = await fetchDoctorByNameFlexible(name);
+      if (byName != null) return byName;
+    }
+    return null;
+  }
+
   static Future<List<Map<String, dynamic>>> fetchTopRatedDoctors([int limit = 5]) async {
     final all = await fetchDoctors();
     all.sort((a, b) {
@@ -63,40 +110,82 @@ class RealtimeDoctorsRepository {
     return all.take(safeLimit).toList();
   }
 
-  static List<Map<String, dynamic>> _mapDoctorsFromEvent(DatabaseEvent event) {
-    return _mapDoctorsFromRawValue(event.snapshot.value);
-  }
-
-  static List<Map<String, dynamic>> _mapDoctorsFromSnapshot(DataSnapshot snapshot) {
-    return _mapDoctorsFromRawValue(snapshot.value);
-  }
-
   static List<Map<String, dynamic>> _mapDoctorsFromRawValue(Object? value) {
+    if (value == null) return const [];
 
-    if (value is Map) {
-      return value.entries
-          .where((entry) => entry.value is Map)
-          .map((entry) {
-            final item = Map<String, dynamic>.from(entry.value as Map);
-            item['id'] = entry.key.toString();
-            return item;
-          })
-          .toList();
-    }
-
-    if (value is List) {
+    List<Map<String, dynamic>> fromList(List<dynamic> list) {
       final result = <Map<String, dynamic>>[];
-      for (var i = 0; i < value.length; i++) {
-        final row = value[i];
+      for (var i = 0; i < list.length; i++) {
+        final row = list[i];
         if (row is Map) {
           final item = Map<String, dynamic>.from(row);
-          item['id'] = i.toString();
+          item.putIfAbsent('id', () => i.toString());
           result.add(item);
         }
       }
       return result;
     }
 
+    List<Map<String, dynamic>> fromMap(Map<dynamic, dynamic> map) {
+      final result = <Map<String, dynamic>>[];
+      for (final entry in map.entries) {
+        final row = entry.value;
+        if (row is Map) {
+          final item = Map<String, dynamic>.from(row);
+          item.putIfAbsent('id', () => entry.key.toString());
+          result.add(item);
+        }
+      }
+      return result;
+    }
+
+    if (value is List) {
+      return fromList(value);
+    }
+
+    if (value is Map) {
+      final nestedKeys = ['doctors', 'data', 'items', 'list'];
+      for (final key in nestedKeys) {
+        if (value.containsKey(key)) {
+          final nested = value[key];
+          if (nested is List) return fromList(nested);
+          if (nested is Map) return fromMap(nested);
+        }
+      }
+
+      final mapped = fromMap(value);
+      if (mapped.isNotEmpty) return mapped;
+
+      for (final nested in value.values) {
+        if (nested is List) {
+          final nestedList = fromList(nested);
+          if (nestedList.isNotEmpty) return nestedList;
+        }
+        if (nested is Map) {
+          final nestedMap = fromMap(nested);
+          if (nestedMap.isNotEmpty) return nestedMap;
+        }
+      }
+    }
+
     return const [];
+  }
+
+  static String _normalizeVietnamese(String input) {
+    final source = input.trim().toLowerCase();
+    if (source.isEmpty) return '';
+    const from = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+    const to = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+    final buffer = StringBuffer();
+    for (final rune in source.runes) {
+      final ch = String.fromCharCode(rune);
+      final idx = from.indexOf(ch);
+      if (idx >= 0) {
+        buffer.write(to[idx]);
+      } else {
+        buffer.write(ch);
+      }
+    }
+    return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }

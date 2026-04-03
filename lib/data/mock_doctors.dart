@@ -123,6 +123,32 @@ const List<Map<String, dynamic>> mockDoctors = [
 
 String _normalize(String value) => value.trim().toLowerCase();
 
+String _normalizeVietnamese(String input) {
+  final source = input.trim().toLowerCase();
+  if (source.isEmpty) return '';
+  const from = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+  const to = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+  final out = StringBuffer();
+  for (final rune in source.runes) {
+    final ch = String.fromCharCode(rune);
+    final idx = from.indexOf(ch);
+    out.write(idx >= 0 ? to[idx] : ch);
+  }
+  return out.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+String _canonicalType(String raw) {
+  final t = _normalizeVietnamese(raw);
+  if (t.contains('tim') || t.contains('cardio')) return 'tim_mach';
+  if (t.contains('rang') || t.contains('nha') || t.contains('dentist') || t.contains('ham')) {
+    return 'rang_ham_mat';
+  }
+  if (t == 'mat' || t.contains('eye')) return 'mat';
+  if (t.contains('co xuong') || t.contains('khop') || t.contains('orthopaedic')) return 'co_xuong_khop';
+  if (t.contains('nhi') || t.contains('paediatric') || t.contains('tre')) return 'nhi_khoa';
+  return t;
+}
+
 List<Map<String, dynamic>> doctorsByName(String keyword) {
   final key = _normalize(keyword);
   if (key.isEmpty) return List<Map<String, dynamic>>.from(mockDoctors);
@@ -132,9 +158,9 @@ List<Map<String, dynamic>> doctorsByName(String keyword) {
 }
 
 List<Map<String, dynamic>> doctorsByType(String type) {
-  final key = _normalize(type);
+  final key = _canonicalType(type);
   return mockDoctors
-      .where((d) => _normalize((d['type'] ?? '').toString()) == key)
+      .where((d) => _canonicalType((d['type'] ?? '').toString()) == key)
       .toList();
 }
 

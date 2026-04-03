@@ -41,51 +41,56 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBxSM691Z9cQ2RXBPO0zimXQ4okBslUE0Q',
-    appId: '1:579685954133:web:032a63a8cd17845c5a9adc',
-    messagingSenderId: '579685954133',
-    projectId: 'noteapp-5ea9b',
-    authDomain: 'noteapp-5ea9b.firebaseapp.com',
-    storageBucket: 'noteapp-5ea9b.firebasestorage.app',
-    measurementId: 'G-6NRTSJV736',
+    apiKey: 'AIzaSyAfIWcu55sDymrf-jI6k49ezdRpPIO8vZs',
+    appId: '1:892439469312:web:ec609a7d56f5b71011e7e5',
+    messagingSenderId: '892439469312',
+    projectId: 'baithick',
+    authDomain: 'baithick.firebaseapp.com',
+    databaseURL: 'https://baithick-default-rtdb.firebaseio.com',
+    storageBucket: 'baithick.firebasestorage.app',
+    measurementId: 'G-J5R1Z81NWL',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB4Gr6pMVutC7mVo4V9hMERLIYqlgNvK5Q',
-    appId: '1:579685954133:android:f9b80bca8dd3ab435a9adc',
-    messagingSenderId: '579685954133',
-    projectId: 'noteapp-5ea9b',
-    storageBucket: 'noteapp-5ea9b.firebasestorage.app',
+    apiKey: 'AIzaSyDLLZscSBliJJDU3r9CJWxfFCI3QJRdwwo',
+    appId: '1:892439469312:android:f4573c4c904b0dfa11e7e5',
+    messagingSenderId: '892439469312',
+    projectId: 'baithick',
+    databaseURL: 'https://baithick-default-rtdb.firebaseio.com',
+    storageBucket: 'baithick.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBA9gCyXHSTBMglHj_pAtV2n9t-SefPvHo',
-    appId: '1:579685954133:ios:020d5558766f67225a9adc',
-    messagingSenderId: '579685954133',
-    projectId: 'noteapp-5ea9b',
-    storageBucket: 'noteapp-5ea9b.firebasestorage.app',
-    iosClientId: '579685954133-c65dvqb64990dbo9f8jjv6bvqua6lpqu.apps.googleusercontent.com',
+    apiKey: 'AIzaSyBgpx2CD_0DaDNof_Ue0HLnKa4r38aQiXo',
+    appId: '1:892439469312:ios:7bfec12106c160a611e7e5',
+    messagingSenderId: '892439469312',
+    projectId: 'baithick',
+    databaseURL: 'https://baithick-default-rtdb.firebaseio.com',
+    storageBucket: 'baithick.firebasestorage.app',
+    iosClientId: '892439469312-hrdb68p3h3oush7uadksgsho953hn7ra.apps.googleusercontent.com',
     iosBundleId: 'com.example.baithick',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBA9gCyXHSTBMglHj_pAtV2n9t-SefPvHo',
-    appId: '1:579685954133:ios:020d5558766f67225a9adc',
-    messagingSenderId: '579685954133',
-    projectId: 'noteapp-5ea9b',
-    storageBucket: 'noteapp-5ea9b.firebasestorage.app',
-    iosClientId: '579685954133-c65dvqb64990dbo9f8jjv6bvqua6lpqu.apps.googleusercontent.com',
+    apiKey: 'AIzaSyBgpx2CD_0DaDNof_Ue0HLnKa4r38aQiXo',
+    appId: '1:892439469312:ios:7bfec12106c160a611e7e5',
+    messagingSenderId: '892439469312',
+    projectId: 'baithick',
+    databaseURL: 'https://baithick-default-rtdb.firebaseio.com',
+    storageBucket: 'baithick.firebasestorage.app',
+    iosClientId: '892439469312-hrdb68p3h3oush7uadksgsho953hn7ra.apps.googleusercontent.com',
     iosBundleId: 'com.example.baithick',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBxSM691Z9cQ2RXBPO0zimXQ4okBslUE0Q',
-    appId: '1:579685954133:web:b47be6efe0517ba85a9adc',
-    messagingSenderId: '579685954133',
-    projectId: 'noteapp-5ea9b',
-    authDomain: 'noteapp-5ea9b.firebaseapp.com',
-    storageBucket: 'noteapp-5ea9b.firebasestorage.app',
-    measurementId: 'G-6XG2G17X9N',
+    apiKey: 'AIzaSyAfIWcu55sDymrf-jI6k49ezdRpPIO8vZs',
+    appId: '1:892439469312:web:d282a7d23c26318311e7e5',
+    messagingSenderId: '892439469312',
+    projectId: 'baithick',
+    authDomain: 'baithick.firebaseapp.com',
+    databaseURL: 'https://baithick-default-rtdb.firebaseio.com',
+    storageBucket: 'baithick.firebasestorage.app',
+    measurementId: 'G-3JGNQRGF0M',
   );
 
 }
