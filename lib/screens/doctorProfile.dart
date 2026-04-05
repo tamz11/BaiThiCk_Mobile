@@ -10,12 +10,12 @@ import 'bookingScreen.dart';
 // Màn hình chi tiết bác sĩ
 // ─────────────────────────────────────────────
 class DoctorProfile extends StatelessWidget {
-  const DoctorProfile({super.key, this.doctor = ''});
+  final String doctor;
+  final Map<String, dynamic>? doctorData;
+  const DoctorProfile({super.key, this.doctor = '', this.doctorData});
 
   static const Color _primary = Color(0xFF4B5AB5);
   static const Color _accent = Color(0xFF7986CB);
-
-  final String doctor;
 
   Future<void> _dial(String phone) async {
     final uri = Uri.parse('tel:$phone');

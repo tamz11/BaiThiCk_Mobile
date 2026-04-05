@@ -257,7 +257,9 @@ class _DoctorCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => DoctorProfile(doctor: name)),
+          MaterialPageRoute(
+            builder: (_) => DoctorProfile(doctor: name, doctorData: data),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
