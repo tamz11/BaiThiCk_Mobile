@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
+import '../utils/specialty_text.dart';
 import 'bookingScreen.dart';
 
 // ─────────────────────────────────────────────
@@ -17,6 +18,24 @@ class DoctorProfile extends StatelessWidget {
 
   final String doctor;
   final Map<String, dynamic>? doctorData;
+
+  String _extractAvatarPath(Map<String, dynamic> src) {
+    const keys = <String>[
+      'image',
+      'avatar',
+      'avatarUrl',
+      'imageUrl',
+      'photoUrl',
+      'photo',
+    ];
+    for (final key in keys) {
+      final value = src[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
+  }
 
   Future<void> _dial(String phone) async {
     final uri = Uri.parse('tel:$phone');
@@ -134,14 +153,14 @@ class DoctorProfile extends StatelessWidget {
             }
 
             final name = data['name']?.toString() ?? 'Bác sĩ';
-            final type = data['type']?.toString() ?? '';
+            final type = toVietnameseSpecialty(data['type']?.toString() ?? '');
             final phone = data['phone']?.toString() ?? '';
             final email = data['email']?.toString() ?? '';
             final address = data['address']?.toString() ?? '';
             final spec = data['specification']?.toString() ?? '';
             final open = data['openHour']?.toString() ?? '';
             final close = data['closeHour']?.toString() ?? '';
-            final image = data['image']?.toString() ?? '';
+            final image = _extractAvatarPath(data);
             final rating = (data['rating'] is num)
                 ? (data['rating'] as num).toInt().clamp(0, 5)
                 : 0;
@@ -202,16 +221,29 @@ class DoctorProfile extends StatelessWidget {
                               child: CircleAvatar(
                                 radius: 52,
                                 backgroundColor: Colors.white,
-                                backgroundImage: image.isNotEmpty
-                                    ? NetworkImage(image)
-                                    : null,
-                                child: image.isNotEmpty
-                                    ? null
-                                    : Icon(
-                                        Icons.person_rounded,
-                                        size: 50,
-                                        color: _primary,
-                                      ),
+                                child: ClipOval(
+                                  child: image.isNotEmpty
+                                      ? Image.network(
+                                          image,
+                                          width: 104,
+                                          height: 104,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) {
+                                            return Image.asset(
+                                              'assets/person.jpg',
+                                              width: 104,
+                                              height: 104,
+                                              fit: BoxFit.cover,
+                                            );
+                                          },
+                                        )
+                                      : Image.asset(
+                                          'assets/person.jpg',
+                                          width: 104,
+                                          height: 104,
+                                          fit: BoxFit.cover,
+                                        ),
+                                ),
                               ),
                             ),
                           ],

@@ -7,16 +7,18 @@ import 'package:baithick/firebase_options.dart';
 import 'package:baithick/mainPage.dart';
 import 'package:baithick/screens/myAppointments.dart';
 import 'package:baithick/screens/userProfile.dart';
+import 'package:baithick/data/local_notification_service.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  SystemChrome.setPreferredOrientations(
-      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await LocalNotificationService.instance.init();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   runApp(MyApp());
 }
@@ -45,4 +47,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

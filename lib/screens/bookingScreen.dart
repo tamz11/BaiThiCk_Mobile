@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../data/app_notification_repository.dart';
 import '../data/appointment_slots_repository.dart';
 import '../data/google_calendar_api_client.dart';
 import '../data/google_calendar_sync_repository.dart';
+import '../data/local_notification_service.dart';
 import '../data/realtime_doctors_repository.dart';
 import '../model/appointment_status.dart';
 import 'myAppointments.dart';
@@ -59,16 +61,20 @@ class _BookingScreenState extends State<BookingScreen> {
     super.initState();
     final presetName = widget.doctorData?['name']?.toString().trim();
     _doctorController = TextEditingController(
-      text: (presetName != null && presetName.isNotEmpty) ? presetName : widget.doctor,
+      text: (presetName != null && presetName.isNotEmpty)
+          ? presetName
+          : widget.doctor,
     );
     _doctorId = AppointmentSlotsRepository.normalizeDoctorId(
       _doctorController.text,
       explicitId: widget.doctorData?['id']?.toString(),
     );
-    _openHour = widget.doctorData?['openHour']?.toString().trim().isNotEmpty == true
+    _openHour =
+        widget.doctorData?['openHour']?.toString().trim().isNotEmpty == true
         ? widget.doctorData!['openHour'].toString().trim()
         : _openHour;
-    _closeHour = widget.doctorData?['closeHour']?.toString().trim().isNotEmpty == true
+    _closeHour =
+        widget.doctorData?['closeHour']?.toString().trim().isNotEmpty == true
         ? widget.doctorData!['closeHour'].toString().trim()
         : _closeHour;
     _initDoctorMeta();
@@ -149,11 +155,12 @@ class _BookingScreenState extends State<BookingScreen> {
       final user = _auth.currentUser;
       Set<String> userBooked = const {};
       if (user != null) {
-        userBooked = await AppointmentSlotsRepository.fetchUserConfirmedSlotKeys(
-          firestore: _firestore,
-          uid: user.uid,
-          date: date,
-        );
+        userBooked =
+            await AppointmentSlotsRepository.fetchUserConfirmedSlotKeys(
+              firestore: _firestore,
+              uid: user.uid,
+              date: date,
+            );
       }
 
       if (!mounted) return;
@@ -321,9 +328,8 @@ class _BookingScreenState extends State<BookingScreen> {
       'dayKey': dayKey,
       'slotKey': slotKey,
       'date': dateTimestamp,
-      'status': AppointmentStatus.confirmed,
-      'slotLockState': 'locked',
-      'confirmedAt': FieldValue.serverTimestamp(),
+      'status': AppointmentStatus.pending,
+      'slotLockState': 'pending',
       'statusUpdatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -332,6 +338,38 @@ class _BookingScreenState extends State<BookingScreen> {
       tx.set(pendingRef, payload);
       tx.set(allRef, {...payload, 'sourcePendingId': pendingRef.id});
     });
+
+    final doctorLabel = _doctorController.text.trim().isNotEmpty
+        ? _doctorController.text.trim()
+        : widget.doctor;
+
+    try {
+      await AppNotificationRepository.instance.createForUser(
+        uid: user.uid,
+        title: 'Yêu cầu đặt lịch đã gửi',
+        message:
+            'Bạn đã gửi yêu cầu đặt lịch với $doctorLabel vào ${DateFormat('HH:mm - dd/MM/yyyy').format(dateTime)}. Đang chờ xác nhận.',
+        type: 'appointment_pending',
+        extra: <String, dynamic>{
+          'appointmentId': pendingRef.id,
+          'status': AppointmentStatus.pending,
+          'doctor': doctorLabel,
+        },
+      );
+    } catch (_) {
+      // Firestore notification failure should not block booking success.
+    }
+
+    try {
+      await LocalNotificationService.instance.showNow(
+        title: 'Đã gửi yêu cầu đặt lịch',
+        body:
+            'Lịch với $doctorLabel lúc ${DateFormat('HH:mm - dd/MM/yyyy').format(dateTime)} đang chờ xác nhận.',
+        appointmentId: pendingRef.id,
+      );
+    } catch (_) {
+      // Local notification failure should not block booking success.
+    }
 
     await _syncCalendarAfterCreate(
       pendingRef: pendingRef,
@@ -347,6 +385,21 @@ class _BookingScreenState extends State<BookingScreen> {
     required Map<String, dynamic> payload,
     required DateTime start,
   }) async {
+    final normalizedStatus = AppointmentStatus.normalize(
+      payload['status']?.toString(),
+    );
+    if (normalizedStatus != AppointmentStatus.confirmed) {
+      await pendingRef.set({
+        'calendarSyncState': 'skipped',
+        'calendarSyncError': 'waiting-for-confirmation',
+      }, SetOptions(merge: true));
+      await allRef.set({
+        'calendarSyncState': 'skipped',
+        'calendarSyncError': 'waiting-for-confirmation',
+      }, SetOptions(merge: true));
+      return;
+    }
+
     final calendarRepo = GoogleCalendarSyncRepository.instance;
     final linked = await calendarRepo.isCalendarLinkedForCurrentUser();
 
@@ -449,10 +502,10 @@ class _BookingScreenState extends State<BookingScreen> {
           .collection('pending')
           .where('dayKey', isEqualTo: day)
           .where('slotKey', isEqualTo: slot)
-          .where('status', whereIn: [
-            AppointmentStatus.pending,
-            AppointmentStatus.confirmed,
-          ])
+          .where(
+            'status',
+            whereIn: [AppointmentStatus.pending, AppointmentStatus.confirmed],
+          )
           .limit(1)
           .get();
 
@@ -467,30 +520,35 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _showAlertDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(
-          'Xong!',
-          style: GoogleFonts.lato(fontWeight: FontWeight.bold),
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentMaterialBanner();
+    messenger.showMaterialBanner(
+      MaterialBanner(
+        backgroundColor: const Color(0xFFE8F0FE),
+        content: Text(
+          'Đã gửi yêu cầu đặt lịch. Lịch hẹn đang chờ xác nhận.',
+          style: GoogleFonts.lato(fontWeight: FontWeight.w700),
         ),
-        content: Text('Lịch hẹn đã được đăng ký.', style: GoogleFonts.lato()),
+        leading: const Icon(Icons.notifications_active_rounded),
         actions: [
           TextButton(
-            child: Text(
-              'OK',
-              style: GoogleFonts.lato(fontWeight: FontWeight.bold),
-            ),
             onPressed: () {
+              messenger.hideCurrentMaterialBanner();
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const MyAppointments()),
               );
             },
+            child: const Text('Xem lịch'),
           ),
         ],
       ),
     );
+
+    Future<void>.delayed(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      messenger.hideCurrentMaterialBanner();
+    });
   }
 
   Future<void> _book() async {
@@ -547,7 +605,8 @@ class _BookingScreenState extends State<BookingScreen> {
       if (e.code == 'patient-conflict') {
         message = 'Bạn đã có một lịch confirmed trùng khung giờ này.';
       } else if (e.code == 'permission-denied') {
-        message = 'Không có quyền ghi lịch hẹn. Vui lòng kiểm tra Firestore Rules.';
+        message =
+            'Không có quyền ghi lịch hẹn. Vui lòng kiểm tra Firestore Rules.';
       }
       if (mounted) {
         ScaffoldMessenger.of(
@@ -558,9 +617,9 @@ class _BookingScreenState extends State<BookingScreen> {
       return;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đặt lịch thất bại: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Đặt lịch thất bại: $e')));
       }
       await _loadAvailability(_selectedDate!);
       return;
@@ -887,7 +946,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           label: Text(
                             _isSubmitting
                                 ? 'Đang đặt lịch...'
-                                : 'Xác nhận đặt lịch',
+                                : 'Gửi yêu cầu đặt lịch',
                             style: GoogleFonts.lato(
                               color: Colors.white,
                               fontSize: 17,

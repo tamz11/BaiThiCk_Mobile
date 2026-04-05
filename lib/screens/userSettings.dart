@@ -144,6 +144,8 @@ class UserSettings extends StatelessWidget {
                   data['calendarTokenStatus'] == 'ready';
               final exchanging = data['calendarTokenStatus'] == 'exchanging';
               final googleEmail = data['googleEmail']?.toString() ?? '';
+              final calendarError =
+                  data['calendarSyncError']?.toString().trim() ?? '';
 
               final statusText = linked
                   ? 'Đã liên kết với Calendar'
@@ -198,6 +200,17 @@ class UserSettings extends StatelessWidget {
                           color: Colors.black54,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    if (!linked && calendarError.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        calendarError,
+                        style: GoogleFonts.lato(
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
                         ),
                       ),
                     ],

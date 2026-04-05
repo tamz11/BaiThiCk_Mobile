@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
 import '../screens/doctorProfile.dart';
+import '../utils/specialty_text.dart';
 
 // ─────────────────────────────────────────────
 // Widget danh sách kết quả tìm kiếm
@@ -23,6 +24,24 @@ class SearchList extends StatelessWidget {
 
   static const Color _primary = Color(0xFF4B5AB5);
   static const Color _lightCard = Color(0xFFE8F0FE);
+
+  String _extractAvatarPath(Map<String, dynamic> src) {
+    const keys = <String>[
+      'image',
+      'avatar',
+      'avatarUrl',
+      'imageUrl',
+      'photoUrl',
+      'photo',
+    ];
+    for (final key in keys) {
+      final value = src[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
+  }
 
   List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> source) {
     final key = searchKey.trim().toLowerCase();
@@ -67,8 +86,8 @@ class SearchList extends StatelessWidget {
 
   Widget _buildCard(BuildContext context, Map<String, dynamic> data) {
     final name = data['name']?.toString() ?? 'Bác sĩ';
-    final type = data['type']?.toString() ?? '';
-    final image = data['image']?.toString() ?? '';
+    final type = toVietnameseSpecialty(data['type']?.toString() ?? '');
+    final image = _extractAvatarPath(data);
     final rating = (data['rating'] is num)
         ? (data['rating'] as num).toDouble()
         : 0.0;
@@ -89,10 +108,27 @@ class SearchList extends StatelessWidget {
               CircleAvatar(
                 radius: 26,
                 backgroundColor: Colors.white,
-                backgroundImage: image.isNotEmpty ? NetworkImage(image) : null,
-                child: image.isNotEmpty
-                    ? null
-                    : Icon(Icons.person_rounded, color: _primary, size: 26),
+                child: ClipOval(
+                  child: image.isNotEmpty
+                      ? Image.network(
+                          image,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            'assets/doc.png',
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Image.asset(
+                          'assets/doc.png',
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                        ),
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -163,7 +199,6 @@ class SearchList extends StatelessWidget {
 
         return Scrollbar(
           child: ListView.separated(
-
             padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
             itemCount: filtered.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),

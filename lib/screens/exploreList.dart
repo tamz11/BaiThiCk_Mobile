@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
+import '../utils/specialty_text.dart';
 import 'doctorProfile.dart';
 
 class ExploreList extends StatelessWidget {
@@ -95,7 +96,7 @@ class ExploreList extends StatelessWidget {
                     style: GoogleFonts.lato(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                   subtitle: Text(
-                    data['type']?.toString() ?? '',
+                    toVietnameseSpecialty(data['type']?.toString() ?? ''),
                     style: GoogleFonts.lato(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w600),
                   ),
                   trailing: Row(

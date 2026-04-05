@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
+import '../utils/specialty_text.dart';
 import 'doctorProfile.dart';
 
 // ─────────────────────────────────────────────
@@ -224,11 +225,29 @@ class _DoctorCard extends StatelessWidget {
   final Color primary;
   final Color lightCard;
 
+  String _extractAvatarPath(Map<String, dynamic> src) {
+    const keys = <String>[
+      'image',
+      'avatar',
+      'avatarUrl',
+      'imageUrl',
+      'photoUrl',
+      'photo',
+    ];
+    for (final key in keys) {
+      final value = src[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = data['name']?.toString() ?? 'Bác sĩ';
-    final type = data['type']?.toString() ?? '';
-    final image = data['image']?.toString() ?? '';
+    final type = toVietnameseSpecialty(data['type']?.toString() ?? '');
+    final image = _extractAvatarPath(data);
     final address = data['address']?.toString() ?? '';
     final open = data['openHour']?.toString() ?? '';
     final close = data['closeHour']?.toString() ?? '';
@@ -266,12 +285,29 @@ class _DoctorCard extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 30,
                   backgroundColor: Colors.white,
-                  backgroundImage: image.isNotEmpty
-                      ? NetworkImage(image)
-                      : null,
-                  child: image.isNotEmpty
-                      ? null
-                      : Icon(Icons.person_rounded, size: 30, color: primary),
+                  child: ClipOval(
+                    child: image.isNotEmpty
+                        ? Image.network(
+                            image,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) {
+                              return Image.asset(
+                                'assets/person.jpg',
+                                width: 60,
+                                height: 60,
+                                fit: BoxFit.cover,
+                              );
+                            },
+                          )
+                        : Image.asset(
+                            'assets/person.jpg',
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),

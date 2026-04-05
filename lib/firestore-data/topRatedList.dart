@@ -5,6 +5,7 @@ import 'package:typicons_flutter/typicons_flutter.dart';
 import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
 import '../screens/doctorProfile.dart';
+import '../utils/specialty_text.dart';
 
 class TopRatedList extends StatefulWidget {
   const TopRatedList({super.key});
@@ -94,7 +95,9 @@ class _TopRatedListState extends State<TopRatedList> {
                                 ),
                               ),
                               Text(
-                                data['type']?.toString() ?? '',
+                                toVietnameseSpecialty(
+                                  data['type']?.toString() ?? '',
+                                ),
                                 style: GoogleFonts.lato(
                                   fontSize: 16,
                                   color: Colors.black54,

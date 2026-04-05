@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../data/app_notification_repository.dart';
 import '../data/appointment_slots_repository.dart';
 import '../data/google_calendar_api_client.dart';
 import '../data/google_calendar_sync_repository.dart';
+import '../data/local_notification_service.dart';
 import '../model/appointment_status.dart';
 
 class MyAppointmentList extends StatefulWidget {
@@ -27,6 +29,30 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     AppointmentStatus.completed,
     AppointmentStatus.cancelled,
   ];
+
+  void _showTopBanner(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentMaterialBanner();
+    messenger.showMaterialBanner(
+      MaterialBanner(
+        backgroundColor: const Color(0xFFE8F0FE),
+        content: Text(message),
+        leading: const Icon(Icons.notifications_active_rounded),
+        actions: [
+          TextButton(
+            onPressed: () => messenger.hideCurrentMaterialBanner(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      messenger.hideCurrentMaterialBanner();
+    });
+  }
 
   String _formatDate(dynamic value) {
     DateTime date;
@@ -392,6 +418,85 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
       nextStatus: status,
       date: date,
     );
+
+    try {
+      final doctorLabel = data['doctor']?.toString().trim();
+      final doctor = (doctorLabel == null || doctorLabel.isEmpty)
+          ? 'Bác sĩ'
+          : doctorLabel;
+      final statusTitle = _statusNotificationTitle(status);
+      final statusType = _statusNotificationType(status);
+
+      try {
+        await AppNotificationRepository.instance.createForUser(
+          uid: uid,
+          title: statusTitle,
+          message:
+              'Lịch với $doctor lúc ${DateFormat('HH:mm - dd/MM/yyyy').format(date)} đã chuyển sang ${AppointmentStatus.label(status)}.',
+          type: statusType,
+          extra: <String, dynamic>{
+            'appointmentId': id,
+            'status': status,
+            'doctor': doctor,
+          },
+        );
+      } catch (_) {
+        // Firestore notification failure should not block status updates.
+      }
+
+      try {
+        await LocalNotificationService.instance.showNow(
+          title: statusTitle,
+          body:
+              'Lịch với $doctor lúc ${DateFormat('HH:mm - dd/MM/yyyy').format(date)} đã chuyển sang ${AppointmentStatus.label(status)}.',
+          appointmentId: id,
+        );
+
+        if (status == AppointmentStatus.confirmed) {
+          await LocalNotificationService.instance.scheduleReminder30MinBefore(
+            appointmentId: id,
+            doctorName: doctor,
+            appointmentTime: date,
+          );
+        } else {
+          await LocalNotificationService.instance.cancelReminder(
+            appointmentId: id,
+          );
+        }
+      } catch (_) {
+        // Local notification failure should not block status updates.
+      }
+    } catch (_) {
+      // Ignore non-critical notification composition failures.
+    }
+  }
+
+  String _statusNotificationTitle(String status) {
+    switch (AppointmentStatus.normalize(status)) {
+      case AppointmentStatus.confirmed:
+        return 'Lịch hẹn đã xác nhận';
+      case AppointmentStatus.cancelled:
+        return 'Lịch hẹn đã hủy';
+      case AppointmentStatus.completed:
+        return 'Lịch hẹn đã hoàn tất';
+      case AppointmentStatus.pending:
+      default:
+        return 'Lịch hẹn đang chờ xử lý';
+    }
+  }
+
+  String _statusNotificationType(String status) {
+    switch (AppointmentStatus.normalize(status)) {
+      case AppointmentStatus.confirmed:
+        return 'appointment_confirmed';
+      case AppointmentStatus.cancelled:
+        return 'appointment_cancelled';
+      case AppointmentStatus.completed:
+        return 'appointment_completed';
+      case AppointmentStatus.pending:
+      default:
+        return 'appointment_pending';
+    }
   }
 
   Future<void> _syncCalendarAfterStatusChange({
@@ -553,12 +658,8 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Đã chuyển trạng thái: ${AppointmentStatus.label(nextStatus)}',
-        ),
-      ),
+    _showTopBanner(
+      'Đã chuyển trạng thái: ${AppointmentStatus.label(nextStatus)}',
     );
   }
 
@@ -815,14 +916,14 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
             uid: uid,
             id: id,
             data: data,
-            nextStatus: AppointmentStatus.confirmed,
+            nextStatus: AppointmentStatus.cancelled,
           ),
           child: Text(
-            'Confirm',
+            'Hủy',
             style: GoogleFonts.lato(
               fontWeight: FontWeight.w800,
               fontSize: 13,
-              color: Colors.green.shade700,
+              color: Colors.red.shade700,
             ),
           ),
         ),
@@ -833,14 +934,14 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
             uid: uid,
             id: id,
             data: data,
-            nextStatus: AppointmentStatus.cancelled,
+            nextStatus: AppointmentStatus.confirmed,
           ),
           child: Text(
-            'Cancel',
+            'Xác nhận',
             style: GoogleFonts.lato(
               fontWeight: FontWeight.w800,
               fontSize: 13,
-              color: Colors.red.shade700,
+              color: Colors.green.shade700,
             ),
           ),
         ),
@@ -855,28 +956,10 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
             uid: uid,
             id: id,
             data: data,
-            nextStatus: AppointmentStatus.pending,
-          ),
-          child: Text(
-            'Pending',
-            style: GoogleFonts.lato(
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
-              color: Colors.orange.shade700,
-            ),
-          ),
-        ),
-      );
-      actions.add(
-        TextButton(
-          onPressed: () => _onAction(
-            uid: uid,
-            id: id,
-            data: data,
             nextStatus: AppointmentStatus.completed,
           ),
           child: Text(
-            'Completed',
+            'Hoàn thành',
             style: GoogleFonts.lato(
               fontWeight: FontWeight.w800,
               fontSize: 13,
@@ -894,7 +977,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
             nextStatus: AppointmentStatus.cancelled,
           ),
           child: Text(
-            'Cancel',
+            'Hủy',
             style: GoogleFonts.lato(
               fontWeight: FontWeight.w800,
               fontSize: 13,
