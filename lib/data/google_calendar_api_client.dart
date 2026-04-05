@@ -2,6 +2,25 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+class GoogleCalendarApiException implements Exception {
+  GoogleCalendarApiException({
+    required this.context,
+    required this.statusCode,
+    required this.rawBody,
+    required this.userMessage,
+  });
+
+  final String context;
+  final int statusCode;
+  final String rawBody;
+  final String userMessage;
+
+  @override
+  String toString() {
+    return '[$context] $statusCode: $userMessage';
+  }
+}
+
 class GoogleCalendarApiClient {
   GoogleCalendarApiClient._();
 
@@ -81,6 +100,109 @@ class GoogleCalendarApiClient {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return;
     }
-    throw Exception('[$context] ${response.statusCode}: ${response.body}');
+
+    final userMessage = _buildUserMessage(
+      statusCode: response.statusCode,
+      responseBody: response.body,
+    );
+
+    throw GoogleCalendarApiException(
+      context: context,
+      statusCode: response.statusCode,
+      rawBody: response.body,
+      userMessage: userMessage,
+    );
   }
+
+  String _buildUserMessage({
+    required int statusCode,
+    required String responseBody,
+  }) {
+    final parsed = _extractErrorMeta(responseBody);
+    final reason = parsed.reason.toLowerCase();
+    final raw = responseBody.toLowerCase();
+    final message = parsed.message;
+
+    final serviceDisabled =
+        reason == 'accessnotconfigured' ||
+        reason == 'service_disabled' ||
+        raw.contains('google calendar api has not been used') ||
+        raw.contains('service_disabled');
+    if (statusCode == 403 && serviceDisabled) {
+      return 'Google Calendar API chưa được bật cho Firebase project. '
+          'Vào Google Cloud Console -> APIs & Services -> Library -> bật "Google Calendar API", '
+          'sau đó chờ 3-5 phút rồi liên kết lại.';
+    }
+
+    final missingScope =
+        reason == 'insufficientpermissions' ||
+        raw.contains('insufficient permission') ||
+        raw.contains('insufficientpermissions');
+    if (statusCode == 403 && missingScope) {
+      return 'Tài khoản Google chưa cấp quyền Calendar. '
+          'Vui lòng liên kết lại Google và chấp nhận quyền truy cập lịch.';
+    }
+
+    if (statusCode == 401) {
+      return 'Phiên đăng nhập Google Calendar đã hết hạn. '
+          'Vui lòng liên kết lại Google Calendar.';
+    }
+
+    if (message.isNotEmpty) {
+      return message;
+    }
+
+    return 'Lỗi Google Calendar ($statusCode). Vui lòng thử lại.';
+  }
+
+  _CalendarErrorMeta _extractErrorMeta(String responseBody) {
+    try {
+      final decoded = jsonDecode(responseBody);
+      if (decoded is! Map<String, dynamic>) {
+        return const _CalendarErrorMeta(message: '', reason: '');
+      }
+
+      final error = decoded['error'];
+      if (error is! Map<String, dynamic>) {
+        return const _CalendarErrorMeta(message: '', reason: '');
+      }
+
+      final message = error['message']?.toString().trim() ?? '';
+      String reason = error['status']?.toString().trim() ?? '';
+
+      final errors = error['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final first = errors.first;
+        if (first is Map<String, dynamic>) {
+          final itemReason = first['reason']?.toString().trim() ?? '';
+          if (itemReason.isNotEmpty) {
+            reason = itemReason;
+          }
+        }
+      }
+
+      final details = error['details'];
+      if (details is List) {
+        for (final item in details) {
+          if (item is! Map<String, dynamic>) continue;
+          final itemReason = item['reason']?.toString().trim() ?? '';
+          if (itemReason.isNotEmpty) {
+            reason = itemReason;
+            break;
+          }
+        }
+      }
+
+      return _CalendarErrorMeta(message: message, reason: reason);
+    } catch (_) {
+      return const _CalendarErrorMeta(message: '', reason: '');
+    }
+  }
+}
+
+class _CalendarErrorMeta {
+  const _CalendarErrorMeta({required this.message, required this.reason});
+
+  final String message;
+  final String reason;
 }

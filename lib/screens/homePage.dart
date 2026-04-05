@@ -49,6 +49,69 @@ class _HomePageState extends State<HomePage> {
   String _temperatureLabel = '--°C';
   String _weatherCondition = 'cloudy';
 
+  Widget _notificationBell() {
+    final user = _auth.currentUser;
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: user == null
+          ? null
+          : _firestore
+                .collection('notification_history')
+                .doc(user.uid)
+                .collection('messages')
+                .where('read', isEqualTo: false)
+                .snapshots(),
+      builder: (context, snapshot) {
+        final unreadCount = snapshot.data?.docs.length ?? 0;
+        final badgeText = unreadCount > 99 ? '99+' : unreadCount.toString();
+
+        return IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+          splashRadius: 18,
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.notifications_active),
+              if (unreadCount > 0)
+                Positioned(
+                  right: -6,
+                  top: -5,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade600,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white, width: 1.2),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 16),
+                    child: Text(
+                      badgeText,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lato(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NotificationList()),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -65,7 +128,8 @@ class _HomePageState extends State<HomePage> {
 
   _ChatMessage _welcomeMessage() {
     return const _ChatMessage(
-      text: 'Xin chào, tôi là trợ lý tư vấn. Bạn mô tả triệu chứng để tôi gợi ý chuyên khoa phù hợp nhé.',
+      text:
+          'Xin chào, tôi là trợ lý tư vấn. Bạn mô tả triệu chứng để tôi gợi ý chuyên khoa phù hợp nhé.',
       isUser: false,
     );
   }
@@ -74,15 +138,22 @@ class _HomePageState extends State<HomePage> {
     if (raw == null) return null;
     final text = raw.toLowerCase();
     if (text.contains('tim')) return 'Tim mạch';
-    if (text.contains('răng') || text.contains('hàm') || text.contains('nha')) return 'Răng hàm mặt';
+    if (text.contains('răng') || text.contains('hàm') || text.contains('nha'))
+      return 'Răng hàm mặt';
     if (text.contains('mắt')) return 'Mắt';
-    if (text.contains('xương') || text.contains('khớp') || text.contains('chỉnh')) return 'Cơ xương khớp';
-    if (text.contains('nhi') || text.contains('trẻ') || text.contains('bé')) return 'Nhi khoa';
+    if (text.contains('xương') ||
+        text.contains('khớp') ||
+        text.contains('chỉnh'))
+      return 'Cơ xương khớp';
+    if (text.contains('nhi') || text.contains('trẻ') || text.contains('bé'))
+      return 'Nhi khoa';
     if (text.contains('nội')) return 'Nội tổng quát';
     return null;
   }
 
-  Future<void> _loadChatHistory(void Function(void Function()) sheetSetState) async {
+  Future<void> _loadChatHistory(
+    void Function(void Function()) sheetSetState,
+  ) async {
     if (_chatSessionLoaded || _isHistoryLoading) return;
 
     final user = _auth.currentUser;
@@ -106,20 +177,23 @@ class _HomePageState extends State<HomePage> {
           .limit(60)
           .get();
 
-      final loaded = snap.docs.map((doc) {
-        final data = doc.data();
-        final alternativesRaw = data['alternatives'];
-        final alternatives = alternativesRaw is List
-            ? alternativesRaw.map((e) => e.toString()).toList()
-            : <String>[];
-        return _ChatMessage(
-          text: (data['text'] ?? '').toString(),
-          isUser: (data['isUser'] ?? false) == true,
-          specialty: _normalizeSpecialty(data['specialty']?.toString()),
-          alternatives: alternatives,
-          urgency: data['urgency']?.toString(),
-        );
-      }).where((m) => m.text.trim().isNotEmpty).toList();
+      final loaded = snap.docs
+          .map((doc) {
+            final data = doc.data();
+            final alternativesRaw = data['alternatives'];
+            final alternatives = alternativesRaw is List
+                ? alternativesRaw.map((e) => e.toString()).toList()
+                : <String>[];
+            return _ChatMessage(
+              text: (data['text'] ?? '').toString(),
+              isUser: (data['isUser'] ?? false) == true,
+              specialty: _normalizeSpecialty(data['specialty']?.toString()),
+              alternatives: alternatives,
+              urgency: data['urgency']?.toString(),
+            );
+          })
+          .where((m) => m.text.trim().isNotEmpty)
+          .toList();
 
       sheetSetState(() {
         _chatMessages
@@ -143,20 +217,27 @@ class _HomePageState extends State<HomePage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _firestore.collection('chat_history').doc(user.uid).collection('messages').add({
-      'text': message.text,
-      'isUser': message.isUser,
-      'specialty': message.specialty,
-      'alternatives': message.alternatives,
-      'urgency': message.urgency,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await _firestore
+        .collection('chat_history')
+        .doc(user.uid)
+        .collection('messages')
+        .add({
+          'text': message.text,
+          'isUser': message.isUser,
+          'specialty': message.specialty,
+          'alternatives': message.alternatives,
+          'urgency': message.urgency,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
   }
 
   Future<void> _clearChatHistory() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    final messagesRef = _firestore.collection('chat_history').doc(user.uid).collection('messages');
+    final messagesRef = _firestore
+        .collection('chat_history')
+        .doc(user.uid)
+        .collection('messages');
     final snap = await messagesRef.get();
     if (snap.docs.isEmpty) return;
 
@@ -186,22 +267,51 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    bump(['dau nguc', 'hoi hop', 'tim dap', 'kho tho', 'huyet ap', 'tuc nguc'], 'Tim mạch', 3);
-    bump(['rang', 'nuou', 'sau rang', 'ham', 'loi', 'viem loi'], 'Răng hàm mặt', 3);
+    bump(
+      ['dau nguc', 'hoi hop', 'tim dap', 'kho tho', 'huyet ap', 'tuc nguc'],
+      'Tim mạch',
+      3,
+    );
+    bump(
+      ['rang', 'nuou', 'sau rang', 'ham', 'loi', 'viem loi'],
+      'Răng hàm mặt',
+      3,
+    );
     bump(['mat', 'mo', 'can', 'nhin', 'do mat', 'choi mat'], 'Mắt', 3);
-    bump(['dau lung', 'xuong', 'khop', 'goi', 'vai gay', 'trat'], 'Cơ xương khớp', 3);
+    bump(
+      ['dau lung', 'xuong', 'khop', 'goi', 'vai gay', 'trat'],
+      'Cơ xương khớp',
+      3,
+    );
     bump(['tre', 'be', 'sot', 'ho', 'so mui', 'tieu chay'], 'Nhi khoa', 2);
-    bump(['met', 'chong mat', 'buon non', 'dau dau', 'mat ngu'], 'Nội tổng quát', 1);
+    bump(
+      ['met', 'chong mat', 'buon non', 'dau dau', 'mat ngu'],
+      'Nội tổng quát',
+      1,
+    );
 
-    final ordered = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final ordered = scores.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     final top = ordered.first;
     if (top.value == 0) return null;
 
     String urgency = 'Ưu tiên thường';
     String note = 'Bạn có thể đặt lịch khám sớm trong 1-3 ngày tới.';
-    final emergencySignals = ['kho tho nhieu', 'dau nguc du doi', 'ngat', 'co giat', 'liet'];
-    final urgentSignals = ['dau du doi', 'sot cao', 'non nhieu', 'keo dai', 'nang dan'];
+    final emergencySignals = [
+      'kho tho nhieu',
+      'dau nguc du doi',
+      'ngat',
+      'co giat',
+      'liet',
+    ];
+    final urgentSignals = [
+      'dau du doi',
+      'sot cao',
+      'non nhieu',
+      'keo dai',
+      'nang dan',
+    ];
     if (emergencySignals.any(text.contains)) {
       urgency = 'Khẩn cấp';
       note = 'Bạn nên đến cơ sở y tế gần nhất hoặc cấp cứu ngay.';
@@ -234,8 +344,10 @@ class _HomePageState extends State<HomePage> {
   String _normalizeVietnamese(String input) {
     final source = input.trim().toLowerCase();
     if (source.isEmpty) return '';
-    const from = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
-    const to = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+    const from =
+        'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+    const to =
+        'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
     final buffer = StringBuffer();
     for (final rune in source.runes) {
       final ch = String.fromCharCode(rune);
@@ -267,7 +379,9 @@ class _HomePageState extends State<HomePage> {
     final primary = advice.primarySpecialty;
     final urgency = advice.urgency;
     final alternatives = advice.alternatives;
-    final altText = alternatives.isNotEmpty ? ' Nếu cần, bạn cũng có thể cân nhắc ${alternatives.join(' hoặc ')}.' : '';
+    final altText = alternatives.isNotEmpty
+        ? ' Nếu cần, bạn cũng có thể cân nhắc ${alternatives.join(' hoặc ')}.'
+        : '';
 
     if (urgency == 'Khẩn cấp') {
       return 'Với mô tả hiện tại, mình ưu tiên chuyên khoa $primary và mức độ đang ở nhóm khẩn cấp. ${advice.note}$altText';
@@ -280,7 +394,9 @@ class _HomePageState extends State<HomePage> {
     return 'Dựa trên triệu chứng bạn mô tả, chuyên khoa phù hợp nhất hiện tại là $primary. ${advice.note}$altText';
   }
 
-  Future<void> _sendChatMessage(void Function(void Function()) sheetSetState) async {
+  Future<void> _sendChatMessage(
+    void Function(void Function()) sheetSetState,
+  ) async {
     final text = _chatController.text.trim();
     if (text.isEmpty) return;
 
@@ -345,25 +461,33 @@ class _HomePageState extends State<HomePage> {
                           CircleAvatar(
                             radius: 16,
                             backgroundColor: _chatPrimary,
-                            child: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 18),
+                            child: const Icon(
+                              Icons.support_agent_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ),
                           const SizedBox(width: 10),
                           Text(
                             'Tư vấn chọn chuyên khoa',
-                            style: GoogleFonts.lato(fontSize: 17, fontWeight: FontWeight.w800),
+                            style: GoogleFonts.lato(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const Spacer(),
                           IconButton(
                             tooltip: 'Xóa chat',
-                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.black54),
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.black54,
+                            ),
                             onPressed: () async {
                               await _clearChatHistory();
                               sheetSetState(() {
                                 _chatMessages
                                   ..clear()
-                                  ..add(
-                                    _welcomeMessage(),
-                                  );
+                                  ..add(_welcomeMessage());
                               });
                             },
                           ),
@@ -377,11 +501,18 @@ class _HomePageState extends State<HomePage> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         scrollDirection: Axis.horizontal,
                         itemCount: _quickPrompts.length,
-                        separatorBuilder: (_, separatorIndex) => const SizedBox(width: 8),
+                        separatorBuilder: (_, separatorIndex) =>
+                            const SizedBox(width: 8),
                         itemBuilder: (context, index) {
                           final prompt = _quickPrompts[index];
                           return ActionChip(
-                            label: Text(prompt, style: GoogleFonts.lato(fontSize: 12, fontWeight: FontWeight.w700)),
+                            label: Text(
+                              prompt,
+                              style: GoogleFonts.lato(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             onPressed: () async {
                               _chatController.text = prompt;
                               await _sendChatMessage(sheetSetState);
@@ -396,14 +527,18 @@ class _HomePageState extends State<HomePage> {
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                        itemCount: _chatMessages.length + (_isBotTyping ? 1 : 0),
+                        itemCount:
+                            _chatMessages.length + (_isBotTyping ? 1 : 0),
                         itemBuilder: (context, index) {
                           if (_isBotTyping && index == _chatMessages.length) {
                             return Align(
                               alignment: Alignment.centerLeft,
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFEAF1FF),
                                   borderRadius: BorderRadius.circular(14),
@@ -414,7 +549,9 @@ class _HomePageState extends State<HomePage> {
                                     SizedBox(
                                       width: 14,
                                       height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                     SizedBox(width: 8),
                                     Text('Đang tư vấn...'),
@@ -426,13 +563,23 @@ class _HomePageState extends State<HomePage> {
 
                           final item = _chatMessages[index];
                           return Align(
-                            alignment: item.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                            alignment: item.isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.78,
+                              ),
                               decoration: BoxDecoration(
-                                color: item.isUser ? _chatPrimary : const Color(0xFFEAF1FF),
+                                color: item.isUser
+                                    ? _chatPrimary
+                                    : const Color(0xFFEAF1FF),
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Column(
@@ -442,14 +589,19 @@ class _HomePageState extends State<HomePage> {
                                     item.text,
                                     style: GoogleFonts.lato(
                                       fontSize: 14,
-                                      color: item.isUser ? Colors.white : Colors.black87,
+                                      color: item.isUser
+                                          ? Colors.white
+                                          : Colors.black87,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   if (!item.isUser && item.urgency != null) ...[
                                     const SizedBox(height: 6),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: _urgencyBg(item.urgency!),
                                         borderRadius: BorderRadius.circular(8),
@@ -464,35 +616,56 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                     ),
                                   ],
-                                  if (!item.isUser && item.specialty != null) ...[
+                                  if (!item.isUser &&
+                                      item.specialty != null) ...[
                                     const SizedBox(height: 8),
                                     SizedBox(
                                       height: 34,
                                       child: OutlinedButton.icon(
                                         style: OutlinedButton.styleFrom(
-                                          side: const BorderSide(color: _chatPrimary),
+                                          side: const BorderSide(
+                                            color: _chatPrimary,
+                                          ),
                                           foregroundColor: _chatPrimary,
-                                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                          ),
                                         ),
                                         onPressed: () {
                                           Navigator.pop(context);
                                           Navigator.push(
                                             this.context,
                                             MaterialPageRoute(
-                                              builder: (_) => ExploreList(type: item.specialty!),
+                                              builder: (_) => ExploreList(
+                                                type: item.specialty!,
+                                              ),
                                             ),
                                           );
                                         },
-                                        icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                                        label: Text('Xem bác sĩ ${item.specialty}', style: GoogleFonts.lato(fontSize: 12, fontWeight: FontWeight.w700)),
+                                        icon: const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 16,
+                                        ),
+                                        label: Text(
+                                          'Xem bác sĩ ${item.specialty}',
+                                          style: GoogleFonts.lato(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],
-                                  if (!item.isUser && item.alternatives.isNotEmpty) ...[
+                                  if (!item.isUser &&
+                                      item.alternatives.isNotEmpty) ...[
                                     const SizedBox(height: 8),
                                     Text(
                                       'Chuyên khoa có thể cân nhắc: ${item.alternatives.join(', ')}',
-                                      style: GoogleFonts.lato(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600),
+                                      style: GoogleFonts.lato(
+                                        fontSize: 12,
+                                        color: Colors.black54,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -515,13 +688,20 @@ class _HomePageState extends State<HomePage> {
                             child: TextField(
                               controller: _chatController,
                               textInputAction: TextInputAction.send,
-                              onSubmitted: (_) async => _sendChatMessage(sheetSetState),
+                              onSubmitted: (_) async =>
+                                  _sendChatMessage(sheetSetState),
                               decoration: InputDecoration(
                                 hintText: 'Nhập triệu chứng của bạn...',
-                                hintStyle: GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w600),
+                                hintStyle: GoogleFonts.lato(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                                 filled: true,
                                 fillColor: Colors.grey.shade100,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: BorderSide.none,
@@ -534,8 +714,13 @@ class _HomePageState extends State<HomePage> {
                             radius: 22,
                             backgroundColor: _chatPrimary,
                             child: IconButton(
-                              onPressed: () async => _sendChatMessage(sheetSetState),
-                              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                              onPressed: () async =>
+                                  _sendChatMessage(sheetSetState),
+                              icon: const Icon(
+                                Icons.send_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ],
@@ -680,15 +865,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    splashRadius: 18,
-                    icon: const Icon(Icons.notifications_active),
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationList()));
-                    },
-                  ),
+                  _notificationBell(),
                 ],
               ),
               const SizedBox(height: 2),
@@ -742,7 +919,10 @@ class _HomePageState extends State<HomePage> {
                         splashRadius: 12,
                         iconSize: 13,
                         visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                        constraints: const BoxConstraints(
+                          minWidth: 20,
+                          minHeight: 20,
+                        ),
                         onPressed: _loadingLocation
                             ? null
                             : () {
@@ -792,7 +972,11 @@ class _HomePageState extends State<HomePage> {
                       textInputAction: TextInputAction.search,
                       controller: _doctorName,
                       decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.only(left: 20, top: 10, bottom: 10),
+                        contentPadding: const EdgeInsets.only(
+                          left: 20,
+                          top: 10,
+                          bottom: 10,
+                        ),
                         border: const OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(15.0)),
                           borderSide: BorderSide.none,
@@ -820,7 +1004,10 @@ class _HomePageState extends State<HomePage> {
                               if (value.isEmpty) return;
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => SearchList(searchKey: value)),
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      SearchList(searchKey: value),
+                                ),
                               );
                             },
                           ),
@@ -835,7 +1022,9 @@ class _HomePageState extends State<HomePage> {
                         if (key.isEmpty) return;
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => SearchList(searchKey: key)),
+                          MaterialPageRoute(
+                            builder: (context) => SearchList(searchKey: key),
+                          ),
                         );
                       },
                     ),
@@ -900,12 +1089,15 @@ class _HomePageState extends State<HomePage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ExploreList(type: cards[index].doctor),
+                                  builder: (context) =>
+                                      ExploreList(type: cards[index].doctor),
                                 ),
                               );
                             },
                             style: TextButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -991,7 +1183,11 @@ class _HomePageState extends State<HomePage> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 26),
+                const Icon(
+                  Icons.chat_bubble_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
                 Positioned(
                   right: 8,
                   top: 8,

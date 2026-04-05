@@ -53,6 +53,8 @@ dependencies:
   intl: ^0.20.2
   geolocator: ^14.0.2
   geocoding: ^4.0.0
+  flutter_local_notifications: ^19.4.0
+  timezone: ^0.10.1
 
 dev_dependencies:
   flutter_test:

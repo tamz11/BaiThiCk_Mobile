@@ -307,8 +307,12 @@ class GoogleCalendarSyncRepository {
         'calendarLinkedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (error) {
-      await _markCalendarLinkFailed(uid: uid, reason: error.toString());
-      rethrow;
+      final reason = _humanizeCalendarError(error);
+      await _markCalendarLinkFailed(uid: uid, reason: reason);
+      throw FirebaseAuthException(
+        code: 'calendar-link-failed',
+        message: reason,
+      );
     }
   }
 
@@ -328,12 +332,28 @@ class GoogleCalendarSyncRepository {
   }) async {
     final current = _googleSignIn.currentUser;
     if (current != null) {
-      return current;
+      final granted = await _googleSignIn.requestScopes(calendarScopes);
+      if (granted) {
+        return current;
+      }
+      if (!interactive) {
+        return null;
+      }
+      await _googleSignIn.disconnect();
+      return _googleSignIn.signIn();
     }
 
     final silent = await _googleSignIn.signInSilently();
     if (silent != null) {
-      return silent;
+      final granted = await _googleSignIn.requestScopes(calendarScopes);
+      if (granted) {
+        return silent;
+      }
+      if (!interactive) {
+        return null;
+      }
+      await _googleSignIn.disconnect();
+      return _googleSignIn.signIn();
     }
 
     if (!interactive) {
@@ -347,9 +367,41 @@ class GoogleCalendarSyncRepository {
     }
   }
 
-  FirebaseAuthException _mapGoogleSignInPlatformException(
-    PlatformException e,
-  ) {
+  String _humanizeCalendarError(Object error) {
+    if (error is FirebaseAuthException) {
+      final message = error.message?.trim() ?? '';
+      if (message.isNotEmpty) {
+        return message;
+      }
+    }
+
+    if (error is GoogleCalendarApiException) {
+      return error.userMessage;
+    }
+
+    final raw = error.toString().toLowerCase();
+    if (raw.contains('accessnotconfigured') ||
+        raw.contains('service_disabled') ||
+        raw.contains('google calendar api has not been used')) {
+      return 'Google Calendar API chưa bật cho project. '
+          'Vui lòng bật Google Calendar API trong Google Cloud Console, '
+          'sau đó chờ vài phút và thử liên kết lại.';
+    }
+
+    if (raw.contains('insufficientpermissions') ||
+        raw.contains('insufficient permission')) {
+      return 'Tài khoản Google chưa cấp đủ quyền Calendar. '
+          'Vui lòng liên kết lại và chấp nhận cấp quyền.';
+    }
+
+    if (raw.contains('401')) {
+      return 'Phiên Google Calendar đã hết hạn. Vui lòng liên kết lại Google Calendar.';
+    }
+
+    return 'Không thể liên kết Google Calendar. Vui lòng thử lại.';
+  }
+
+  FirebaseAuthException _mapGoogleSignInPlatformException(PlatformException e) {
     final raw = '${e.code} ${e.message ?? ''} ${e.details ?? ''}'.toLowerCase();
     final isApi10 = raw.contains('sign_in_failed') && raw.contains('api: 10');
     if (isApi10) {

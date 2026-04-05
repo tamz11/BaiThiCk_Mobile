@@ -9,7 +9,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '08:00',
     'closeHour': '16:30',
     'rating': 5,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/men/1.jpg',
   },
   {
     'name': 'BS. Trần Thị Lan',
@@ -21,7 +21,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '09:00',
     'closeHour': '19:00',
     'rating': 4,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/women/2.jpg',
   },
   {
     'name': 'BS. Lê Quốc Anh',
@@ -33,7 +33,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '07:30',
     'closeHour': '16:00',
     'rating': 5,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/men/3.jpg',
   },
   {
     'name': 'BS. Phạm Đức Khoa',
@@ -45,7 +45,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '08:30',
     'closeHour': '17:00',
     'rating': 4,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/men/4.jpg',
   },
   {
     'name': 'BS. Võ Thị Hương',
@@ -57,7 +57,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '08:00',
     'closeHour': '17:30',
     'rating': 5,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/women/5.jpg',
   },
   {
     'name': 'BS. Đặng Thanh Bình',
@@ -69,7 +69,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '08:00',
     'closeHour': '15:30',
     'rating': 4,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/men/6.jpg',
   },
   {
     'name': 'BS. Hoàng Minh Châu',
@@ -81,7 +81,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '10:00',
     'closeHour': '20:00',
     'rating': 5,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/women/7.jpg',
   },
   {
     'name': 'BS. Nguyễn Thị Mai',
@@ -93,7 +93,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '09:00',
     'closeHour': '18:00',
     'rating': 4,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/women/8.jpg',
   },
   {
     'name': 'BS. Bùi Tuấn Kiệt',
@@ -105,7 +105,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '07:30',
     'closeHour': '16:30',
     'rating': 4,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/men/9.jpg',
   },
   {
     'name': 'BS. Phan Ngọc Trúc',
@@ -117,7 +117,7 @@ const List<Map<String, dynamic>> mockDoctors = [
     'openHour': '08:30',
     'closeHour': '17:00',
     'rating': 5,
-    'image': '',
+    'image': 'https://randomuser.me/api/portraits/women/10.jpg',
   },
 ];
 
