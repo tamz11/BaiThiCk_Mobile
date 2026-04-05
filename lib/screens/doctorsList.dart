@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
 import '../utils/specialty_text.dart';
+import '../theme_provider.dart'; 
 import 'doctorProfile.dart';
 
-// ─────────────────────────────────────────────
-// Màn hình danh sách bác sĩ – tìm kiếm & lọc
-// ─────────────────────────────────────────────
 class DoctorsList extends StatefulWidget {
   const DoctorsList({super.key});
 
@@ -17,12 +16,11 @@ class DoctorsList extends StatefulWidget {
 }
 
 class _DoctorsListState extends State<DoctorsList> {
-  // ── Màu sắc ──────────────────────────────
-  static const Color _primary = Color(0xFF4B5AB5);
-  static const Color _lightCard = Color(0xFFE8F0FE);
-  static const Color _neutral = Color(0xFFD6D6D6);
+  late Color _primary;
+  late Color _lightCard;
+  late Color _neutral;
+  late bool _isDark;
 
-  // ── Chuyên khoa: tên hiển thị → giá trị 'type' trong DB ─────────────────
   static const Map<String, String> _specialtyMap = {
     'Tất cả': '',
     'Tim mạch': 'Cardiologist',
@@ -34,7 +32,7 @@ class _DoctorsListState extends State<DoctorsList> {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
-  String _activeType = ''; // '' = tất cả chuyên khoa
+  String _activeType = '';
 
   @override
   void dispose() {
@@ -42,7 +40,6 @@ class _DoctorsListState extends State<DoctorsList> {
     super.dispose();
   }
 
-  // ── Lọc theo tên + chuyên khoa ───────────────────────────────────────────
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> all) {
     final key = _searchText.toLowerCase();
     return all.where((d) {
@@ -54,55 +51,52 @@ class _DoctorsListState extends State<DoctorsList> {
     }).toList();
   }
 
-  // ── AppBar với ô tìm kiếm ────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
+    // Khai báo themeProvider ở đây để dùng cho nút bấm đổi màu
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return AppBar(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       toolbarHeight: 68,
       titleSpacing: 14,
       title: TextField(
         controller: _searchController,
-        textInputAction: TextInputAction.search,
         onChanged: (v) => setState(() => _searchText = v.trim()),
         style: GoogleFonts.lato(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: Colors.black87,
+          color: _isDark ? Colors.white : Colors.black87,
         ),
         decoration: InputDecoration(
           hintText: 'Tìm bác sĩ theo tên...',
-          hintStyle: GoogleFonts.lato(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.black38,
-          ),
+          hintStyle: GoogleFonts.lato(color: _isDark ? Colors.white38 : Colors.black38),
           filled: true,
-          fillColor: _neutral.withOpacity(0.35),
-          prefixIcon: const Icon(Icons.search_rounded, color: Colors.black45),
-          suffixIcon: _searchText.isNotEmpty
-              ? IconButton(
-                  onPressed: () => setState(() {
-                    _searchController.clear();
-                    _searchText = '';
-                  }),
-                  icon: const Icon(Icons.close_rounded, color: Colors.black45),
-                )
-              : null,
+          fillColor: _isDark ? Colors.white10 : Colors.grey[200],
+          prefixIcon: Icon(Icons.search_rounded, color: _isDark ? Colors.white70 : Colors.black45),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+          contentPadding: EdgeInsets.zero,
         ),
       ),
+      actions: [
+        IconButton(
+          onPressed: () => themeProvider.toggleTheme(),
+          icon: Icon(
+            _isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            color: _isDark ? Colors.amber : _primary,
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 
-  // ── Chip lọc chuyên khoa ─────────────────────────────────────────────────
   Widget _buildSpecialtyChips() {
-    return SizedBox(
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor, // Ép nền tối ở đây
       height: 50,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
@@ -119,48 +113,32 @@ class _DoctorsListState extends State<DoctorsList> {
               style: GoogleFonts.lato(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : _primary,
+                color: selected ? Colors.white : (_isDark ? Colors.white70 : _primary),
               ),
             ),
             selected: selected,
             onSelected: (_) => setState(() => _activeType = typeVal),
-            backgroundColor: Colors.white,
+            backgroundColor: _isDark ? Colors.white10 : Colors.grey[200],
             selectedColor: _primary,
-            checkmarkColor: Colors.white,
             showCheckmark: false,
-            side: BorderSide(color: selected ? _primary : _neutral, width: 1.2),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            side: BorderSide(color: selected ? _primary : (_isDark ? Colors.white24 : Colors.transparent)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           );
         },
       ),
     );
   }
 
-  // ── Trạng thái rỗng ──────────────────────────────────────────────────────
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.search_off_rounded,
-            size: 72,
-            color: Color(0xFFD0D5E8),
-          ),
-          const SizedBox(height: 14),
+          Icon(Icons.search_off_rounded, size: 64, color: _neutral.withOpacity(0.5)),
+          const SizedBox(height: 16),
           Text(
-            'Không tìm thấy bác sĩ',
-            style: GoogleFonts.lato(
-              color: _primary,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Thử tìm với từ khóa hoặc chuyên khoa khác',
-            style: GoogleFonts.lato(color: Colors.black38, fontSize: 13),
+            "Không tìm thấy bác sĩ nào",
+            style: GoogleFonts.lato(color: _isDark ? Colors.white54 : Colors.black45),
           ),
         ],
       ),
@@ -169,14 +147,20 @@ class _DoctorsListState extends State<DoctorsList> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    _primary = theme.colorScheme.primary; 
+    _lightCard = theme.cardColor;   
+    _neutral = theme.colorScheme.onSurface; 
+    _isDark = theme.brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: _buildAppBar(),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSpecialtyChips(),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+          Divider(height: 1, thickness: 1, color: _isDark ? Colors.white10 : Colors.grey[300]),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: RealtimeDoctorsRepository.streamDoctors(),
@@ -190,16 +174,15 @@ class _DoctorsListState extends State<DoctorsList> {
 
                 if (filtered.isEmpty) return _buildEmptyState();
 
-                return Scrollbar(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _DoctorCard(
-                      data: filtered[i],
-                      primary: _primary,
-                      lightCard: _lightCard,
-                    ),
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _DoctorCard(
+                    data: filtered[i],
+                    primary: _primary,
+                    cardColor: _lightCard,
+                    isDark: _isDark,
                   ),
                 );
               },
@@ -211,52 +194,29 @@ class _DoctorsListState extends State<DoctorsList> {
   }
 }
 
-// ─────────────────────────────────────────────
-// Widget card cho một bác sĩ
-// ─────────────────────────────────────────────
 class _DoctorCard extends StatelessWidget {
   const _DoctorCard({
     required this.data,
     required this.primary,
-    required this.lightCard,
+    required this.cardColor,
+    required this.isDark,
   });
 
   final Map<String, dynamic> data;
   final Color primary;
-  final Color lightCard;
-
-  String _extractAvatarPath(Map<String, dynamic> src) {
-    const keys = <String>[
-      'image',
-      'avatar',
-      'avatarUrl',
-      'imageUrl',
-      'photoUrl',
-      'photo',
-    ];
-    for (final key in keys) {
-      final value = src[key]?.toString().trim() ?? '';
-      if (value.isNotEmpty) {
-        return value;
-      }
-    }
-    return '';
-  }
+  final Color cardColor;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
     final name = data['name']?.toString() ?? 'Bác sĩ';
     final type = toVietnameseSpecialty(data['type']?.toString() ?? '');
-    final image = _extractAvatarPath(data);
     final address = data['address']?.toString() ?? '';
-    final open = data['openHour']?.toString() ?? '';
-    final close = data['closeHour']?.toString() ?? '';
-    final rating = (data['rating'] is num)
-        ? (data['rating'] as num).toDouble()
-        : 0.0;
+    final rating = (data['rating'] is num) ? (data['rating'] as num).toDouble() : 0.0;
+    final subColor = isDark ? Colors.white60 : Colors.black38;
 
     return Material(
-      color: lightCard,
+      color: cardColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -267,147 +227,47 @@ class _DoctorCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // ── Avatar ──────────────────────────
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white,
-                  child: ClipOval(
-                    child: image.isNotEmpty
-                        ? Image.network(
-                            image,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) {
-                              return Image.asset(
-                                'assets/person.jpg',
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                              );
-                            },
-                          )
-                        : Image.asset(
-                            'assets/person.jpg',
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                          ),
-                  ),
-                ),
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: isDark ? Colors.white10 : Colors.grey[100],
+                child: const Icon(Icons.person, color: Colors.grey),
               ),
               const SizedBox(width: 14),
-              // ── Thông tin ──────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.lato(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Badge chuyên khoa
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: primary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        type,
-                        style: GoogleFonts.lato(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: primary,
-                        ),
+                    Text(
+                      type,
+                      style: GoogleFonts.lato(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.indigoAccent[100] : primary,
                       ),
                     ),
                     if (address.isNotEmpty) ...[
                       const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.place_outlined,
-                            size: 12,
-                            color: Colors.black38,
-                          ),
-                          const SizedBox(width: 3),
-                          Expanded(
-                            child: Text(
-                              address,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.lato(
-                                fontSize: 11,
-                                color: Colors.black38,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (open.isNotEmpty && close.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time_rounded,
-                            size: 12,
-                            color: Colors.black38,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            '$open – $close',
-                            style: GoogleFonts.lato(
-                              fontSize: 11,
-                              color: Colors.black38,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        address,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.lato(fontSize: 11, color: subColor),
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              // ── Rating ─────────────────────────
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _RatingBadge(rating: rating, primary: primary),
-                  const SizedBox(height: 8),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: Color(0xFFBBBBBB),
-                    size: 20,
-                  ),
-                ],
-              ),
+              _RatingBadge(rating: rating, primary: primary, isDark: isDark),
             ],
           ),
         ),
@@ -416,34 +276,28 @@ class _DoctorCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Badge hiển thị điểm đánh giá
-// ─────────────────────────────────────────────
 class _RatingBadge extends StatelessWidget {
-  const _RatingBadge({required this.rating, required this.primary});
+  const _RatingBadge({required this.rating, required this.primary, required this.isDark});
   final double rating;
   final Color primary;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final label = (rating == rating.roundToDouble())
-        ? rating.toInt().toString()
-        : rating.toStringAsFixed(1);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: primary.withOpacity(0.10),
+        color: primary.withOpacity(isDark ? 0.25 : 0.10),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.star_rounded, color: primary, size: 15),
+          Icon(Icons.star_rounded, color: isDark ? Colors.amber : primary, size: 15),
           const SizedBox(width: 3),
           Text(
-            label,
+            rating.toStringAsFixed(1),
             style: GoogleFonts.lato(
-              color: primary,
+              color: isDark ? Colors.white : primary,
               fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
