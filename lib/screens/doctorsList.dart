@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../data/doctor_type_utils.dart'; // ← hàm canonicalType dùng chung
 import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
 import 'doctorProfile.dart';
@@ -16,16 +17,20 @@ class DoctorsList extends StatefulWidget {
 }
 
 class _DoctorsListState extends State<DoctorsList> {
-  // ── Màu sắc ──────────────────────────────
+  // ── Màu sắc ───────────────────────────────────────────────────────────────
   static const Color _primary = Color(0xFF4B5AB5);
   static const Color _lightCard = Color(0xFFE8F0FE);
   static const Color _neutral = Color(0xFFD6D6D6);
 
-  // ── Chuyên khoa: tên hiển thị → giá trị 'type' trong DB ─────────────────
+  // ── Chuyên khoa ───────────────────────────────────────────────────────────
+  // Key   = nhãn hiển thị trên chip (khớp với cardModel để nhất quán UI)
+  // Value = giá trị type gốc trong DB (tiếng Anh)
+  //         — khi lọc sẽ được đưa qua canonicalType() nên DB lưu
+  //           tiếng Anh hay tiếng Việt đều khớp được.
   static const Map<String, String> _specialtyMap = {
     'Tất cả': '',
     'Tim mạch': 'Cardiologist',
-    'Nha khoa': 'Dentist',
+    'Răng hàm mặt': 'Dentist', // ← đồng bộ với cardModel.dart
     'Mắt': 'Eye Special',
     'Cơ xương khớp': 'Orthopaedic',
     'Nhi khoa': 'Paediatrician',
@@ -41,19 +46,26 @@ class _DoctorsListState extends State<DoctorsList> {
     super.dispose();
   }
 
-  // ── Lọc theo tên + chuyên khoa ───────────────────────────────────────────
+  // ── Lọc theo tên + chuyên khoa ────────────────────────────────────────────
+  // FIX: dùng canonicalType() để so sánh thay vì so sánh string thẳng.
+  //      Nhờ đó DB lưu 'Cardiologist' hay 'Tim mạch' đều cho kết quả đúng.
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> all) {
-    final key = _searchText.toLowerCase();
+    final nameKey = _searchText.toLowerCase();
+    final targetSlug = canonicalType(_activeType); // slug của chip đang chọn
+
     return all.where((d) {
       final name = (d['name'] ?? '').toString().toLowerCase();
-      final type = (d['type'] ?? '').toString().trim().toLowerCase();
-      final nameOk = key.isEmpty || name.contains(key);
-      final typeOk = _activeType.isEmpty || type == _activeType.toLowerCase();
+      final dbType = (d['type'] ?? '').toString().trim();
+
+      final nameOk = nameKey.isEmpty || name.contains(nameKey);
+      final typeOk =
+          _activeType.isEmpty || canonicalType(dbType) == targetSlug; // ← FIX
+
       return nameOk && typeOk;
     }).toList();
   }
 
-  // ── AppBar với ô tìm kiếm ────────────────────────────────────────────────
+  // ── AppBar với ô tìm kiếm ─────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.white,
@@ -99,7 +111,7 @@ class _DoctorsListState extends State<DoctorsList> {
     );
   }
 
-  // ── Chip lọc chuyên khoa ─────────────────────────────────────────────────
+  // ── Thanh chip lọc chuyên khoa ────────────────────────────────────────────
   Widget _buildSpecialtyChips() {
     return SizedBox(
       height: 50,
@@ -112,6 +124,7 @@ class _DoctorsListState extends State<DoctorsList> {
           final label = _specialtyMap.keys.elementAt(i);
           final typeVal = _specialtyMap.values.elementAt(i);
           final selected = _activeType == typeVal;
+
           return FilterChip(
             label: Text(
               label,
@@ -136,7 +149,7 @@ class _DoctorsListState extends State<DoctorsList> {
     );
   }
 
-  // ── Trạng thái rỗng ──────────────────────────────────────────────────────
+  // ── Trạng thái rỗng ───────────────────────────────────────────────────────
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -166,6 +179,7 @@ class _DoctorsListState extends State<DoctorsList> {
     );
   }
 
+  // ── Build chính ───────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -211,7 +225,7 @@ class _DoctorsListState extends State<DoctorsList> {
 }
 
 // ─────────────────────────────────────────────
-// Widget card cho một bác sĩ
+// Card một bác sĩ trong danh sách
 // ─────────────────────────────────────────────
 class _DoctorCard extends StatelessWidget {
   const _DoctorCard({
@@ -250,7 +264,7 @@ class _DoctorCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // ── Avatar ──────────────────────────
+              // ── Avatar ─────────────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -275,11 +289,13 @@ class _DoctorCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              // ── Thông tin ──────────────────────
+
+              // ── Thông tin ──────────────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Tên bác sĩ
                     Text(
                       name,
                       maxLines: 1,
@@ -291,6 +307,7 @@ class _DoctorCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
+
                     // Badge chuyên khoa
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -310,6 +327,8 @@ class _DoctorCard extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                    // Địa chỉ
                     if (address.isNotEmpty) ...[
                       const SizedBox(height: 5),
                       Row(
@@ -334,6 +353,8 @@ class _DoctorCard extends StatelessWidget {
                         ],
                       ),
                     ],
+
+                    // Giờ làm việc
                     if (open.isNotEmpty && close.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Row(
@@ -358,7 +379,8 @@ class _DoctorCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              // ── Rating ─────────────────────────
+
+              // ── Rating + chevron ───────────────────────────────────
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -381,7 +403,7 @@ class _DoctorCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// Badge hiển thị điểm đánh giá
+// Badge hiển thị điểm rating
 // ─────────────────────────────────────────────
 class _RatingBadge extends StatelessWidget {
   const _RatingBadge({required this.rating, required this.primary});
@@ -393,6 +415,7 @@ class _RatingBadge extends StatelessWidget {
     final label = (rating == rating.roundToDouble())
         ? rating.toInt().toString()
         : rating.toStringAsFixed(1);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
