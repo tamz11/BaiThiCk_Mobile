@@ -1,42 +1,71 @@
 {
   "project_info": {
-    "project_number": "892439469312",
-    "firebase_url": "https://baithick-default-rtdb.firebaseio.com",
-    "project_id": "baithick",
-    "storage_bucket": "baithick.firebasestorage.app"
+    "project_number": "260097644905",
+    "project_id": "medicalbookingapp-be22d",
+    "storage_bucket": "medicalbookingapp-be22d.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:892439469312:android:f4573c4c904b0dfa11e7e5",
+        "mobilesdk_app_id": "1:260097644905:android:a19b6b0a3d615a5ab285f8",
         "android_client_info": {
-          "package_name": "com.example.baithick"
+          "package_name": "com.adr.baithick"
         }
       },
       "oauth_client": [
         {
-          "client_id": "892439469312-jaa9rl4627talfvbnqmjr44304ot1095.apps.googleusercontent.com",
+          "client_id": "260097644905-e5n1gql0c177uu5n06rbgrqnmttk7pj5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adr.baithick",
+            "certificate_hash": "a20ca83f824dd9620045c28e12171d52e2395a67"
+          }
+        },
+        {
+          "client_id": "260097644905-8rm0fgin8qs57mf93tet25o7i13pbiq7.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDLLZscSBliJJDU3r9CJWxfFCI3QJRdwwo"
+          "current_key": "AIzaSyBeY4H_1etx0h5xXKWHiY55mO5CpMs57hg"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "892439469312-jaa9rl4627talfvbnqmjr44304ot1095.apps.googleusercontent.com",
+              "client_id": "260097644905-8rm0fgin8qs57mf93tet25o7i13pbiq7.apps.googleusercontent.com",
               "client_type": 3
-            },
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260097644905:android:175fb760a50f24a3b285f8",
+        "android_client_info": {
+          "package_name": "com.example.baithick"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "260097644905-8rm0fgin8qs57mf93tet25o7i13pbiq7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBeY4H_1etx0h5xXKWHiY55mO5CpMs57hg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
             {
-              "client_id": "892439469312-hrdb68p3h3oush7uadksgsho953hn7ra.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.baithick"
-              }
+              "client_id": "260097644905-8rm0fgin8qs57mf93tet25o7i13pbiq7.apps.googleusercontent.com",
+              "client_type": 3
             }
           ]
         }

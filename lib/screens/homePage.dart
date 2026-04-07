@@ -51,7 +51,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget _notificationBell() {
     final user = _auth.currentUser;
-
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: user == null
           ? null
@@ -72,7 +73,11 @@ class _HomePageState extends State<HomePage> {
           icon: Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(Icons.notifications_active),
+              Icon(
+                Icons.notifications_active,
+                color: colorScheme.onSurface,
+                size: 26,
+              ),
               if (unreadCount > 0)
                 Positioned(
                   right: -6,
@@ -84,8 +89,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                     decoration: BoxDecoration(
                       color: Colors.red.shade600,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white, width: 1.2),
+                      shape: BoxShape.rectangle,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 1.2),
                     ),
                     constraints: const BoxConstraints(minWidth: 16),
                     child: Text(
@@ -838,12 +844,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       key: _scaffoldKey,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         toolbarHeight: 82,
         titleSpacing: 0,
@@ -859,7 +868,7 @@ class _HomePageState extends State<HomePage> {
                     child: Text(
                       _message(),
                       style: GoogleFonts.lato(
-                        color: Colors.black54,
+                        color: colorScheme.onSurface.withOpacity(0.8),
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
@@ -877,7 +886,7 @@ class _HomePageState extends State<HomePage> {
                         Icon(
                           Icons.location_on_outlined,
                           size: 14,
-                          color: Colors.blue[700],
+                          color: colorScheme.primary,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -886,7 +895,7 @@ class _HomePageState extends State<HomePage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.lato(
-                              color: Colors.black54,
+                              color: colorScheme.onSurface.withOpacity(0.8),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -908,7 +917,7 @@ class _HomePageState extends State<HomePage> {
                       Text(
                         _temperatureLabel,
                         style: GoogleFonts.lato(
-                          color: Colors.black54,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -971,6 +980,11 @@ class _HomePageState extends State<HomePage> {
                     child: TextFormField(
                       textInputAction: TextInputAction.search,
                       controller: _doctorName,
+                      style: GoogleFonts.lato(
+                        color: Colors.black87, 
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.only(
                           left: 20,
@@ -985,7 +999,7 @@ class _HomePageState extends State<HomePage> {
                         fillColor: Colors.grey[200],
                         hintText: 'Tìm bác sĩ',
                         hintStyle: GoogleFonts.lato(
-                          color: Colors.black26,
+                          color: Colors.black45,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1013,10 +1027,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
-                      style: GoogleFonts.lato(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
+        
                       onFieldSubmitted: (value) {
                         final key = value.trim();
                         if (key.isEmpty) return;

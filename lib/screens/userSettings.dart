@@ -10,8 +10,9 @@ import 'signIn.dart';
 class UserSettings extends StatelessWidget {
   const UserSettings({super.key});
 
-  static const Color _primary = Color(0xFF4B5AB5);
-  static const Color _soft = Color(0xFFE4F2FD);
+  // Giữ nguyên các định nghĩa màu gốc làm mặc định cho Light Mode
+  static const Color _primaryLight = Color(0xFF4B5AB5);
+  static const Color _softLight = Color(0xFFE4F2FD);
 
   Future<void> _linkCalendar(BuildContext context) async {
     try {
@@ -50,17 +51,30 @@ class UserSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+
+    // Kiểm tra chế độ tối
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Tự động điều chỉnh màu sắc dựa trên theme
+    final primaryColor = isDark
+        ? Theme.of(context).colorScheme.primary
+        : _primaryLight;
+    final softColor = isDark ? Colors.grey.withOpacity(0.15) : _softLight;
+    final containerColor = isDark ? Theme.of(context).cardColor : Colors.white;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor tự động lấy từ Theme (ScaffoldBackgroundColor)
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        iconTheme: const IconThemeData(color: _primary),
+        backgroundColor:
+            Colors.transparent, // Trong suốt để ăn theo nền Scaffold
+        surfaceTintColor: Colors.transparent,
+        iconTheme: IconThemeData(color: primaryColor),
         title: Text(
           'Cài đặt',
           style: GoogleFonts.lato(
-            color: _primary,
+            color: primaryColor,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -72,14 +86,14 @@ class UserSettings extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: _soft,
+              color: softColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
                 const CircleAvatar(
                   radius: 21,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Colors.white24,
                   backgroundImage: AssetImage('assets/person.jpg'),
                 ),
                 const SizedBox(width: 10),
@@ -92,7 +106,7 @@ class UserSettings extends StatelessWidget {
                         style: GoogleFonts.lato(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: Colors.black87,
+                          color: textColor, // Đổi màu theo theme
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -103,7 +117,7 @@ class UserSettings extends StatelessWidget {
                         style: GoogleFonts.lato(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black54,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
                     ],
@@ -116,7 +130,7 @@ class UserSettings extends StatelessWidget {
           Text(
             'Chỉnh sửa hồ sơ',
             style: GoogleFonts.lato(
-              color: _primary,
+              color: primaryColor,
               fontWeight: FontWeight.w800,
               fontSize: 15,
             ),
@@ -124,9 +138,9 @@ class UserSettings extends StatelessWidget {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: containerColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _soft),
+              border: Border.all(color: softColor),
             ),
             child: const Padding(
               padding: EdgeInsets.all(8),
@@ -154,29 +168,33 @@ class UserSettings extends StatelessWidget {
                   : 'Chưa liên kết với Calendar';
 
               final statusColor = linked
-                  ? Colors.green.shade700
+                  ? Colors.green.shade400
                   : exchanging
-                  ? Colors.orange.shade700
-                  : Colors.grey.shade700;
+                  ? Colors.orange.shade400
+                  : (isDark ? Colors.grey : Colors.grey.shade700);
 
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: containerColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _soft),
+                  border: Border.all(color: softColor),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.calendar_month, color: _primary, size: 20),
+                        Icon(
+                          Icons.calendar_month,
+                          color: primaryColor,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Google Calendar',
                           style: GoogleFonts.lato(
-                            color: _primary,
+                            color: primaryColor,
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
                           ),
@@ -197,7 +215,7 @@ class UserSettings extends StatelessWidget {
                       Text(
                         googleEmail,
                         style: GoogleFonts.lato(
-                          color: Colors.black54,
+                          color: isDark ? Colors.white60 : Colors.black54,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -208,7 +226,7 @@ class UserSettings extends StatelessWidget {
                       Text(
                         calendarError,
                         style: GoogleFonts.lato(
-                          color: Colors.red.shade700,
+                          color: Colors.red.shade400,
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
                         ),
@@ -218,6 +236,7 @@ class UserSettings extends StatelessWidget {
                       const SizedBox(height: 10),
                       SizedBox(
                         height: 40,
+                        width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: () => _linkCalendar(context),
                           icon: const Icon(Icons.link, size: 18),
@@ -228,7 +247,7 @@ class UserSettings extends StatelessWidget {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _primary,
+                            backgroundColor: primaryColor,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -241,7 +260,9 @@ class UserSettings extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Material(
-            color: const Color(0xFFFFECEC),
+            color: isDark
+                ? Colors.red.withOpacity(0.15)
+                : const Color(0xFFFFECEC),
             borderRadius: BorderRadius.circular(10),
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
@@ -258,7 +279,7 @@ class UserSettings extends StatelessWidget {
                     Text(
                       'Đăng xuất',
                       style: GoogleFonts.lato(
-                        color: Colors.red.shade700,
+                        color: isDark ? Colors.redAccent : Colors.red.shade700,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
