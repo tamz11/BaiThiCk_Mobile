@@ -20,16 +20,15 @@ class MyAppointmentList extends StatefulWidget {
 
 class _MyAppointmentListState extends State<MyAppointmentList> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  Color get _primary => const Color(0xFF4B5AB5);
-  final Set<String> _syncingIds = {};
-  final List<String> _statusOrder = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
-  final Color _lightCard = Colors.white;
-  // Hàm bổ trợ để lấy màu nền card phù hợp với mode
-  Color _getCardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E) // Màu card tối
-        : const Color(0xFFE4F2FD); // Màu card sáng (_lightCard cũ)
-  }
+  static const Color _primary = Color(0xFF4B5AB5);
+  static const Color _lightCard = Color(0xFFE4F2FD);
+  final Set<String> _syncingIds = <String>{};
+  static const List<String> _statusOrder = <String>[
+    AppointmentStatus.pending,
+    AppointmentStatus.confirmed,
+    AppointmentStatus.completed,
+    AppointmentStatus.cancelled,
+  ];
 
   void _showTopBanner(String message) {
     if (!mounted) return;
@@ -692,7 +691,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     }
   }
 
-  Widget _buildStatusSummaryChip({required String status, required int count, bool isDark = false,}) {
+  Widget _buildStatusSummaryChip({required String status, required int count}) {
     final color = _statusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -722,7 +721,6 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
   Widget _buildStatusSectionHeader({
     required String status,
     required int count,
-    bool isDark = false,
   }) {
     final color = _statusColor(status);
     return Padding(
@@ -765,9 +763,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     required QueryDocumentSnapshot<Map<String, dynamic>> doc,
     required Map<String, dynamic> data,
     required String status,
-    required BuildContext context,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
         color: _lightCard,
@@ -999,11 +995,8 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (user == null) {
-      return Center(child: Text( 
-        'Vui lòng đăng nhập để xem lịch hẹn', 
-        style: GoogleFonts.lato(color: isDark ? Colors.white70 : Colors.black54),));
+      return const Center(child: Text('Vui lòng đăng nhập để xem lịch hẹn'));
     }
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -1011,7 +1004,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
           .collection('appointments')
           .doc(user.uid)
           .collection('pending')
-          .orderBy('date', descending: true)
+          .orderBy('date')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1025,7 +1018,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
               style: GoogleFonts.lato(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white54 : Colors.black54,
+                color: Colors.black54,
               ),
             ),
           );
@@ -1053,19 +1046,18 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
           Container(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+              border: Border.all(color: Colors.black12),
             ),
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _statusOrder
-                  .map<Widget>(
+                  .map(
                     (status) => _buildStatusSummaryChip(
                       status: status,
                       count: grouped[status]?.length ?? 0,
-                      isDark: isDark,
                     ),
                   )
                   .toList(),
@@ -1093,7 +1085,6 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                 doc: doc,
                 data: data,
                 status: status,
-                context: context,
               ),
             );
             sections.add(const SizedBox(height: 9));

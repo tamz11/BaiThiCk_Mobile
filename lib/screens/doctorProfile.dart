@@ -48,8 +48,7 @@ class DoctorProfile extends StatelessWidget {
   }
 
   // ── Ngôi sao đánh giá ────────────────────────────────────────────────────
-  Widget _buildStars(BuildContext context, int rating) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildStars(int rating) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(5, (i) {
@@ -64,13 +63,11 @@ class DoctorProfile extends StatelessWidget {
 
   // ── Hàng thông tin (icon + text) ─────────────────────────────────────────
   Widget _infoRow({
-    required BuildContext context,
     required IconData icon,
     required String text,
     VoidCallback? onTap,
     Color? textColor,
   }) {
-    final defaultTextColor = Theme.of(context).textTheme.bodyLarge?.color;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -118,10 +115,8 @@ class DoctorProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>?>(
           future: RealtimeDoctorsRepository.fetchDoctorByIdentity(
@@ -181,12 +176,13 @@ class DoctorProfile extends StatelessWidget {
                   SliverAppBar(
                     expandedHeight: 220,
                     pinned: true,
-                    backgroundColor: theme.scaffoldBackgroundColor,
-                    surfaceTintColor: theme.scaffoldBackgroundColor,
+                    backgroundColor: Colors.white,
+                    surfaceTintColor: Colors.white,
                     elevation: 0,
                     leading: IconButton(
-                      icon: Icon(
-                        Icons.arrow_back_ios_new_rounded,color: isDark ? Colors.white : _primary,
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: _primary,
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
@@ -269,7 +265,7 @@ class DoctorProfile extends StatelessWidget {
                             style: GoogleFonts.lato(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
-                              color: theme.textTheme.bodyLarge?.color,
+                              color: Colors.black87,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -280,20 +276,18 @@ class DoctorProfile extends StatelessWidget {
                           const SizedBox(height: 12),
 
                           // Đánh giá sao
-                          _buildStars(context, rating),
+                          _buildStars(rating),
 
                           const SizedBox(height: 6),
                           Text(
                             '$rating / 5',
                             style: GoogleFonts.lato(
                               fontSize: 13,
-                              color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6),
+                              color: Colors.black38,
                             ),
                           ),
 
                           const SizedBox(height: 20),
-                          _buildStars(context, rating),
-                          
                           const Divider(),
 
                           // Mô tả chuyên môn
@@ -306,7 +300,7 @@ class DoctorProfile extends StatelessWidget {
                                 style: GoogleFonts.lato(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
-                                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6),
+                                  color: Colors.black45,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -339,7 +333,7 @@ class DoctorProfile extends StatelessWidget {
                               style: GoogleFonts.lato(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6),
+                                color: Colors.black45,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -356,7 +350,6 @@ class DoctorProfile extends StatelessWidget {
                               children: [
                                 if (address.isNotEmpty)
                                   _infoRow(
-                                    context: context,
                                     icon: Icons.place_outlined,
                                     text: address,
                                   ),
@@ -367,7 +360,6 @@ class DoctorProfile extends StatelessWidget {
                                     endIndent: 20,
                                   ),
                                   _infoRow(
-                                    context: context,
                                     icon: Icons.phone_in_talk_rounded,
                                     text: phone,
                                     textColor: Colors.blue[700],
@@ -381,7 +373,6 @@ class DoctorProfile extends StatelessWidget {
                                     endIndent: 20,
                                   ),
                                   _infoRow(
-                                    context: context,
                                     icon: Icons.email_outlined,
                                     text: email,
                                     textColor: Colors.blue[700],
@@ -395,7 +386,6 @@ class DoctorProfile extends StatelessWidget {
                                     endIndent: 20,
                                   ),
                                   _infoRow(
-                                    context: context,
                                     icon: Icons.access_time_rounded,
                                     text: 'Hôm nay: $open – $close',
                                   ),

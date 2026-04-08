@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:baithick/screens/homePage.dart';
 import 'package:baithick/screens/myAppointments.dart';
+import 'package:baithick/screens/userProfile.dart';
 import 'package:baithick/screens/doctorsList.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:typicons_flutter/typicons_flutter.dart';
-import 'package:baithick/screens/profile_screen.dart';
 
 class MainPage extends StatefulWidget {
   @override
@@ -21,8 +21,9 @@ class _MainPageState extends State<MainPage> {
   List<Widget> _pages = [
     HomePage(),
     DoctorsList(),
+    //Center(child: Text('New Appointment')),
     MyAppointments(),
-    const ProfileScreen(),
+    UserProfile(),
   ];
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -31,6 +32,8 @@ class _MainPageState extends State<MainPage> {
   Future<void> _getUser() async {
     user = _auth.currentUser;
   }
+
+  String shortcut = "không có thao tác";
 
   @override
   void initState() {
@@ -46,76 +49,74 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Khai báo theme để dùng bên dưới
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Scaffold(
-      key: _scaffoldKey,
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 20, 
-              color: Colors.black.withOpacity(isDark ? 0.5 : 0.1)
+    return Container(
+      color: Colors.white,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        key: _scaffoldKey,
+        body: _pages[_selectedIndex],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8),
-            child: GNav(
-              curve: Curves.easeOutExpo,
-              // SỬA: Màu hiệu ứng loang lổ khi nhấn
-              rippleColor: isDark ? Colors.white10 : Colors.grey.shade300,
-              hoverColor: isDark ? Colors.white24 : Colors.grey.shade100,
-              haptic: true,
-              tabBorderRadius: 20,
-              gap: 5,
-              // SỬA: Màu Icon/Chữ khi được chọn
-              activeColor: Colors.white, 
-              // SỬA: Màu Icon khi CHƯA chọn (onSurfaceVariant tự đổi theo theme)
-              color: theme.colorScheme.onSurfaceVariant,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              duration: const Duration(milliseconds: 400),
-              // SỬA: Màu nền của Tab đang chọn
-              tabBackgroundColor: isDark 
-                  ? theme.colorScheme.primary.withOpacity(0.4) // Xanh mờ trong DarkMode
-                  : Colors.blue.withOpacity(0.7),
-              textStyle: GoogleFonts.lato(
-                color: Colors.white,
-                fontWeight: FontWeight.w600
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 20,
+                color: Colors.black.withOpacity(.2),
               ),
-              tabs: [
-                GButton(
-                  iconSize: _selectedIndex != 0 ? 28 : 25,
-                  icon: _selectedIndex == 0 ? Icons.home : Icons.home_outlined,
-                  text: 'Trang chủ',
+            ],
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8),
+              child: GNav(
+                curve: Curves.easeOutExpo,
+                rippleColor: Colors.grey.shade300,
+                hoverColor: Colors.grey.shade100,
+                haptic: true,
+                tabBorderRadius: 20,
+                gap: 5,
+                activeColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                duration: Duration(milliseconds: 400),
+                tabBackgroundColor: Colors.blue.withOpacity(0.7),
+                textStyle: GoogleFonts.lato(
+                  color: Colors.white,
                 ),
-                GButton(icon: Icons.search, text: 'Tìm kiếm'),
-                GButton(
-                  iconSize: 28,
-                  icon: _selectedIndex == 2
-                      ? Typicons.calendar
-                      : Typicons.calendar_outline,
-                  text: 'Lịch hẹn',
-                ),
-                GButton(
-                  iconSize: 29,
-                  icon: _selectedIndex == 3
-                      ? Typicons.user
-                      : Typicons.user_outline,
-                  text: 'Cá nhân',
-                ),
-              ],
-              selectedIndex: _selectedIndex,
-              onTabChange: _onItemTapped,
+                tabs: [
+                  GButton(
+                    iconSize: _selectedIndex != 0 ? 28 : 25,
+                    icon: _selectedIndex == 0
+                        ? Icons.home
+                        : Icons.home_outlined,
+                    text: 'Trang chủ',
+                  ),
+                  GButton(
+                    icon: Icons.search,
+                    text: 'Tìm kiếm',
+                  ),
+                  GButton(
+                    iconSize: 28,
+                    icon: _selectedIndex == 2
+                        ? Typicons.calendar
+                        : Typicons.calendar_outline,
+                    text: 'Lịch hẹn',
+                  ),
+                  GButton(
+                    iconSize: 29,
+                    icon: _selectedIndex == 3
+                        ? Typicons.user
+                        : Typicons.user_outline,
+                    text: 'Cá nhân',
+                  ),
+                ],
+                selectedIndex: _selectedIndex,
+                onTabChange: _onItemTapped,
+              ),
             ),
           ),
         ),
@@ -123,3 +124,4 @@ class _MainPageState extends State<MainPage> {
     );
   }
 }
+

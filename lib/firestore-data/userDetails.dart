@@ -5,22 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../updateUserDetails.dart';
 
-Future<void> saveNewUserToFirestore(User user) async {
-  final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-  final snapshot = await docRef.get();
-  if (snapshot.exists) {
-    return;
-  }
-
-  await docRef.set({
-    'uid': user.uid,
-    'name': user.displayName,
-    'email': user.email,
-    'photoUrl': user.photoURL,
-    'role': 'patient',
-  });
-}
-
 class UserDetails extends StatefulWidget {
   const UserDetails({super.key});
 
@@ -41,10 +25,7 @@ class _UserDetailsState extends State<UserDetails> {
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -55,18 +36,9 @@ class _UserDetailsState extends State<UserDetails> {
           children: [
             _item(
               title: 'Họ và tên',
-              value:
-                  data['name']?.toString() ??
-                  user.displayName ??
-                  'Chưa cập nhật',
+              value: data['name']?.toString() ?? user.displayName ?? 'Chưa cập nhật',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        UpdateUserDetails(label: 'họ và tên', field: 'name'),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (_) => UpdateUserDetails(label: 'họ và tên', field: 'name')));
               },
             ),
             const SizedBox(height: 8),
@@ -74,13 +46,7 @@ class _UserDetailsState extends State<UserDetails> {
               title: 'Giới thiệu',
               value: data['bio']?.toString() ?? 'Chưa cập nhật',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        UpdateUserDetails(label: 'giới thiệu', field: 'bio'),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (_) => UpdateUserDetails(label: 'giới thiệu', field: 'bio')));
               },
             ),
           ],
