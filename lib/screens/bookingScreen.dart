@@ -55,6 +55,7 @@ class _BookingScreenState extends State<BookingScreen> {
   List<TimeOfDay> _dailySlots = const [];
   Set<String> _doctorBookedSlotKeys = const {};
   Set<String> _bookedSlotKeys = const {};
+  OverlayEntry? _centerNotice;
 
   @override
   void initState() {
@@ -253,7 +254,9 @@ class _BookingScreenState extends State<BookingScreen> {
               if (_dailySlots.isEmpty)
                 Text(
                   'Không có khung giờ khả dụng trong ngày này.',
-                  style: GoogleFonts.lato(color: Colors.black54),
+                  style: GoogleFonts.lato(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 )
               else
                 Wrap(
@@ -519,35 +522,72 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  void _showAlertDialog() {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentMaterialBanner();
-    messenger.showMaterialBanner(
-      MaterialBanner(
-        backgroundColor: const Color(0xFFE8F0FE),
-        content: Text(
-          'Đã gửi yêu cầu đặt lịch. Lịch hẹn đang chờ xác nhận.',
-          style: GoogleFonts.lato(fontWeight: FontWeight.w700),
-        ),
-        leading: const Icon(Icons.notifications_active_rounded),
-        actions: [
-          TextButton(
-            onPressed: () {
-              messenger.hideCurrentMaterialBanner();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const MyAppointments()),
-              );
-            },
-            child: const Text('Xem lịch'),
+  void _showCenterNotice(String message) {
+    if (!mounted) return;
+    _centerNotice?.remove();
+
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: IgnorePointer(
+          child: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F8A4C),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        message,
+                        style: GoogleFonts.lato(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
+    _centerNotice = entry;
+    overlay.insert(entry);
 
-    Future<void>.delayed(const Duration(seconds: 4), () {
+    Future<void>.delayed(const Duration(milliseconds: 1800), () {
       if (!mounted) return;
-      messenger.hideCurrentMaterialBanner();
+      if (identical(_centerNotice, entry)) {
+        _centerNotice?.remove();
+        _centerNotice = null;
+      } else {
+        entry.remove();
+      }
     });
   }
 
@@ -632,11 +672,13 @@ class _BookingScreenState extends State<BookingScreen> {
     }
 
     if (!mounted) return;
-    _showAlertDialog();
+    _showCenterNotice('Đã gửi yêu cầu đặt lịch. Lịch hẹn đang chờ xác nhận.');
   }
 
   @override
   void dispose() {
+    _centerNotice?.remove();
+    _centerNotice = null;
     _nameController.dispose();
     _phoneController.dispose();
     _descriptionController.dispose();
@@ -653,21 +695,22 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'Đặt lịch khám',
           style: GoogleFonts.lato(
-            color: Colors.black,
+            color: scheme.onSurface,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: scheme.onSurface),
       ),
       body: SafeArea(
         child: NotificationListener<OverscrollIndicatorNotification>(
@@ -880,7 +923,7 @@ class _BookingScreenState extends State<BookingScreen> {
                               'Khung giờ còn trống: ${_dailySlots.where((slot) => !_isSlotUnavailable(slot)).length}/${_dailySlots.length}',
                               style: GoogleFonts.lato(
                                 fontSize: 13,
-                                color: Colors.black54,
+                                color: scheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -1000,7 +1043,7 @@ class _BookingScreenState extends State<BookingScreen> {
           style: GoogleFonts.lato(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: Colors.black87,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 2),
@@ -1009,7 +1052,7 @@ class _BookingScreenState extends State<BookingScreen> {
           style: GoogleFonts.lato(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: Colors.black45,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -1038,7 +1081,7 @@ class _BookingScreenState extends State<BookingScreen> {
       style: GoogleFonts.lato(
         fontSize: 16,
         fontWeight: FontWeight.w800,
-        color: Colors.black87,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
       decoration: InputDecoration(
         contentPadding: const EdgeInsets.symmetric(
@@ -1059,9 +1102,9 @@ class _BookingScreenState extends State<BookingScreen> {
           borderSide: const BorderSide(color: _primary, width: 1.5),
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).colorScheme.surface,
         hintStyle: GoogleFonts.lato(
-          color: Colors.black38,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontSize: 15,
           fontWeight: FontWeight.w700,
         ),
@@ -1094,7 +1137,7 @@ class _BookingScreenState extends State<BookingScreen> {
             style: GoogleFonts.lato(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: Colors.black87,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(
@@ -1114,7 +1157,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 borderSide: const BorderSide(color: _primary, width: 1.5),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               hintText: hint,
               hintStyle: GoogleFonts.lato(
                 color: Colors.black38,

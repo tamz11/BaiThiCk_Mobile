@@ -145,6 +145,7 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
           .limit(widget.compactProfileStyle ? 5 : 80)
           .snapshots(),
       builder: (context, snapshot) {
+        final scheme = Theme.of(context).colorScheme;
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -154,7 +155,7 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
             'Chưa có lịch sử lịch hẹn.',
             style: GoogleFonts.lato(
               fontSize: 14,
-              color: Colors.black54,
+              color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           );
@@ -184,7 +185,7 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: Colors.white,
+                        backgroundColor: scheme.surface,
                         child: ClipOval(
                           child: avatar.isNotEmpty
                               ? Image.network(
@@ -218,7 +219,7 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.lato(
                                 fontSize: 22,
-                                color: Colors.black87,
+                                color: scheme.onSurface,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -226,7 +227,7 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
                               _formatDate(data['date']),
                               style: GoogleFonts.lato(
                                 fontSize: 15,
-                                color: Colors.black54,
+                                color: scheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -262,7 +263,7 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
                   children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: Colors.white,
+                      backgroundColor: scheme.surface,
                       child: ClipOval(
                         child: _doctorAvatar(data).isNotEmpty
                             ? Image.network(
@@ -296,7 +297,7 @@ class _AppointmentHistoryListState extends State<AppointmentHistoryList> {
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.lato(
                               fontSize: 14,
-                              color: Colors.black87,
+                              color: scheme.onSurface,
                               fontWeight: FontWeight.w700,
                             ),
                           ),

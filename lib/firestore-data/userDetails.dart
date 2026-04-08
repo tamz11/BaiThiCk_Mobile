@@ -25,7 +25,10 @@ class _UserDetailsState extends State<UserDetails> {
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -36,9 +39,18 @@ class _UserDetailsState extends State<UserDetails> {
           children: [
             _item(
               title: 'Họ và tên',
-              value: data['name']?.toString() ?? user.displayName ?? 'Chưa cập nhật',
+              value:
+                  data['name']?.toString() ??
+                  user.displayName ??
+                  'Chưa cập nhật',
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => UpdateUserDetails(label: 'họ và tên', field: 'name')));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        UpdateUserDetails(label: 'họ và tên', field: 'name'),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 8),
@@ -46,7 +58,44 @@ class _UserDetailsState extends State<UserDetails> {
               title: 'Giới thiệu',
               value: data['bio']?.toString() ?? 'Chưa cập nhật',
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => UpdateUserDetails(label: 'giới thiệu', field: 'bio')));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        UpdateUserDetails(label: 'giới thiệu', field: 'bio'),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _item(
+              title: 'Số điện thoại',
+              value:
+                  data['phone']?.toString() ??
+                  user.phoneNumber ??
+                  'Chưa cập nhật',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        UpdateUserDetails(label: 'số điện thoại', field: 'phone'),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _item(
+              title: 'Địa chỉ',
+              value: data['address']?.toString() ?? 'Chưa cập nhật',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        UpdateUserDetails(label: 'địa chỉ', field: 'address'),
+                  ),
+                );
               },
             ),
           ],
@@ -60,6 +109,7 @@ class _UserDetailsState extends State<UserDetails> {
     required String value,
     required VoidCallback onTap,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
       color: _soft,
       borderRadius: BorderRadius.circular(10),
@@ -79,7 +129,7 @@ class _UserDetailsState extends State<UserDetails> {
                       style: GoogleFonts.lato(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black54,
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -90,7 +140,7 @@ class _UserDetailsState extends State<UserDetails> {
                       style: GoogleFonts.lato(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: scheme.onSurface,
                       ),
                     ),
                   ],
@@ -98,7 +148,7 @@ class _UserDetailsState extends State<UserDetails> {
               ),
               CircleAvatar(
                 radius: 12,
-                backgroundColor: Colors.white,
+                backgroundColor: scheme.surface,
                 child: Icon(Icons.edit_outlined, color: _primary, size: 14),
               ),
             ],

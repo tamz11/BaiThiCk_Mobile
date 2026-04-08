@@ -49,15 +49,18 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         key: _scaffoldKey,
         body: _pages[_selectedIndex],
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: scheme.surface,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(20),
@@ -65,14 +68,16 @@ class _MainPageState extends State<MainPage> {
             boxShadow: [
               BoxShadow(
                 blurRadius: 20,
-                color: Colors.black.withOpacity(.2),
+                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
               ),
             ],
           ),
           child: SafeArea(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10.0,
+                vertical: 8,
+              ),
               child: GNav(
                 curve: Curves.easeOutExpo,
                 rippleColor: Colors.grey.shade300,
@@ -83,10 +88,8 @@ class _MainPageState extends State<MainPage> {
                 activeColor: Colors.white,
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 duration: Duration(milliseconds: 400),
-                tabBackgroundColor: Colors.blue.withOpacity(0.7),
-                textStyle: GoogleFonts.lato(
-                  color: Colors.white,
-                ),
+                tabBackgroundColor: scheme.primary.withValues(alpha: 0.9),
+                textStyle: GoogleFonts.lato(color: Colors.white),
                 tabs: [
                   GButton(
                     iconSize: _selectedIndex != 0 ? 28 : 25,
@@ -95,10 +98,7 @@ class _MainPageState extends State<MainPage> {
                         : Icons.home_outlined,
                     text: 'Trang chủ',
                   ),
-                  GButton(
-                    icon: Icons.search,
-                    text: 'Tìm kiếm',
-                  ),
+                  GButton(icon: Icons.search, text: 'Tìm kiếm'),
                   GButton(
                     iconSize: 28,
                     icon: _selectedIndex == 2
@@ -124,4 +124,3 @@ class _MainPageState extends State<MainPage> {
     );
   }
 }
-

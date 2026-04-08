@@ -38,14 +38,14 @@ class AppointmentStatus {
     final normalized = normalize(status);
     switch (normalized) {
       case confirmed:
-        return 'Confirmed';
+        return 'Đã xác nhận';
       case completed:
-        return 'Completed';
+        return 'Hoàn tất';
       case cancelled:
-        return 'Cancelled';
+        return 'Đã hủy';
       case pending:
       default:
-        return 'Pending';
+        return 'Chờ xác nhận';
     }
   }
 }

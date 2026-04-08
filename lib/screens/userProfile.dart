@@ -11,16 +11,17 @@ class AppointmentHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'Lịch sử lịch hẹn',
           style: GoogleFonts.lato(
-            color: Colors.black87,
+            color: scheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -46,9 +47,10 @@ class UserProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(15, 0, 15, 10),
@@ -118,7 +120,7 @@ class UserProfile extends StatelessWidget {
                         style: GoogleFonts.lato(
                           fontSize: 29,
                           fontWeight: FontWeight.w800,
-                          color: Colors.black87,
+                          color: scheme.onSurface,
                         ),
                       ),
                     ],
@@ -133,12 +135,14 @@ class UserProfile extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _contactRow(
+                    context: context,
                     icon: Icons.mail_rounded,
                     iconBg: Colors.red.shade700,
                     text: user?.email ?? 'Chưa có email',
                   ),
                   const SizedBox(height: 10),
                   _contactRow(
+                    context: context,
                     icon: Icons.phone,
                     iconBg: Colors.blue.shade700,
                     text: (user?.phoneNumber?.trim().isNotEmpty ?? false)
@@ -185,7 +189,7 @@ class UserProfile extends StatelessWidget {
                               : bio,
                           style: GoogleFonts.lato(
                             fontSize: 15,
-                            color: Colors.black54,
+                            color: scheme.onSurfaceVariant,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -265,6 +269,7 @@ class UserProfile extends StatelessWidget {
   }
 
   Widget _contactRow({
+    required BuildContext context,
     required IconData icon,
     required Color iconBg,
     required String text,
@@ -280,7 +285,7 @@ class UserProfile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.lato(
               fontSize: 16,
-              color: Colors.black54,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
             ),
           ),

@@ -10,39 +10,29 @@ class FireBaseAuth extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 24),
-                child: Text(
-                  'Medic.ly',
-                  style: GoogleFonts.lato(
-                    color: Colors.indigo[900],
-                    fontSize: 40,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
               const Spacer(),
-              Image.asset(
-                'assets/vector-doc.jpg',
-                scale: 2.4,
-              ),
+              Image.asset('assets/vector-doc.jpg', scale: 2.4),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignIn()));
+                    Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => const SignIn()));
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.indigo[900],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32),
+                    ),
                   ),
                   child: Text(
                     'Đăng nhập',
@@ -57,7 +47,9 @@ class FireBaseAuth extends StatelessWidget {
               const SizedBox(height: 10),
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Register()));
+                  Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const Register()));
                 },
                 child: Text(
                   'Tạo tài khoản',

@@ -94,9 +94,10 @@ class _SignInState extends State<SignIn> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: NotificationListener<OverscrollIndicatorNotification>(
           onNotification: (notification) {
@@ -217,7 +218,7 @@ class _SignInState extends State<SignIn> {
                           'Quên mật khẩu?',
                           style: GoogleFonts.lato(
                             fontSize: 16,
-                            color: Colors.black54,
+                            color: scheme.onSurfaceVariant,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

@@ -100,7 +100,7 @@ class _NotificationListState extends State<NotificationList> {
               style: GoogleFonts.lato(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -111,18 +111,19 @@ class _NotificationListState extends State<NotificationList> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+          backgroundColor: scheme.surface,
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
           title: Text(
             'Thông báo',
             style: GoogleFonts.lato(
-              color: Colors.black87,
+              color: scheme.onSurface,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -134,7 +135,7 @@ class _NotificationListState extends State<NotificationList> {
             style: GoogleFonts.lato(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: Colors.black54,
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -142,15 +143,15 @@ class _NotificationListState extends State<NotificationList> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'Thông báo',
           style: GoogleFonts.lato(
-            color: Colors.black87,
+            color: scheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -229,7 +230,7 @@ class _NotificationListState extends State<NotificationList> {
                                 fontWeight: read
                                     ? FontWeight.w700
                                     : FontWeight.w900,
-                                color: Colors.black87,
+                                color: scheme.onSurface,
                               ),
                             ),
                             if (message.isNotEmpty) ...[
@@ -239,7 +240,7 @@ class _NotificationListState extends State<NotificationList> {
                                 style: GoogleFonts.lato(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.black54,
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],

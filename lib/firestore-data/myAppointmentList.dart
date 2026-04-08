@@ -21,8 +21,8 @@ class MyAppointmentList extends StatefulWidget {
 class _MyAppointmentListState extends State<MyAppointmentList> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   static const Color _primary = Color(0xFF4B5AB5);
-  static const Color _lightCard = Color(0xFFE4F2FD);
   final Set<String> _syncingIds = <String>{};
+  OverlayEntry? _centerNotice;
   static const List<String> _statusOrder = <String>[
     AppointmentStatus.pending,
     AppointmentStatus.confirmed,
@@ -30,27 +30,72 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     AppointmentStatus.cancelled,
   ];
 
-  void _showTopBanner(String message) {
+  void _showCenterNotice(String message) {
     if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentMaterialBanner();
-    messenger.showMaterialBanner(
-      MaterialBanner(
-        backgroundColor: const Color(0xFFE8F0FE),
-        content: Text(message),
-        leading: const Icon(Icons.notifications_active_rounded),
-        actions: [
-          TextButton(
-            onPressed: () => messenger.hideCurrentMaterialBanner(),
-            child: const Text('OK'),
+    _centerNotice?.remove();
+
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: IgnorePointer(
+          child: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F8A4C),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        message,
+                        style: GoogleFonts.lato(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
+    _centerNotice = entry;
+    overlay.insert(entry);
 
-    Future<void>.delayed(const Duration(seconds: 3), () {
+    Future<void>.delayed(const Duration(milliseconds: 1700), () {
       if (!mounted) return;
-      messenger.hideCurrentMaterialBanner();
+      if (identical(_centerNotice, entry)) {
+        _centerNotice?.remove();
+        _centerNotice = null;
+      } else {
+        entry.remove();
+      }
     });
   }
 
@@ -116,7 +161,8 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     ];
 
     return {
-      'summary': '[$status] Khám với $doctor - $patient',
+      'summary':
+          '[${AppointmentStatus.label(status)}] Khám với $doctor - $patient',
       'description': descriptionLines.join('\n'),
       'start': {
         'dateTime': start.toUtc().toIso8601String(),
@@ -141,7 +187,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Chỉ lịch Pending hoặc Confirmed mới đồng bộ được với Google Calendar.',
+            'Chỉ lịch Chờ xác nhận hoặc Đã xác nhận mới đồng bộ được với Lịch Google.',
           ),
         ),
       );
@@ -180,16 +226,14 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
           'calendarSyncState': 'skipped',
           'calendarSyncError': 'calendar-not-linked',
         }, SetOptions(merge: true));
-        throw Exception(
-          'Bạn chưa liên kết Google Calendar trong phần Cài đặt.',
-        );
+        throw Exception('Bạn chưa liên kết Lịch Google trong phần Cài đặt.');
       }
 
       final accessToken = await calendarRepo.getCalendarAccessToken(
         interactive: true,
       );
       if (accessToken == null || accessToken.isEmpty) {
-        throw Exception('Không lấy được access token Google Calendar.');
+        throw Exception('Không lấy được access token Lịch Google.');
       }
 
       final calendarId = await calendarRepo.getCalendarIdForCurrentUser();
@@ -232,9 +276,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã đồng bộ lịch hẹn lên Google Calendar.'),
-        ),
+        const SnackBar(content: Text('Đã đồng bộ lịch hẹn lên Lịch Google.')),
       );
     } catch (error) {
       await pendingRef.set({
@@ -248,7 +290,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đồng bộ Calendar thất bại: $error')),
+        SnackBar(content: Text('Đồng bộ Lịch Google thất bại: $error')),
       );
     } finally {
       if (mounted) {
@@ -363,7 +405,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
           throw FirebaseException(
             plugin: 'cloud_firestore',
             code: 'patient-conflict',
-            message: 'Bạn đã có một lịch confirmed trong khung giờ này.',
+            message: 'Bạn đã có một lịch đã xác nhận trong khung giờ này.',
           );
         }
 
@@ -621,7 +663,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
 
     return {
       'summary': isCompleted
-          ? '[Completed] Khám với $doctor - $patient'
+          ? '[Hoàn tất] Khám với $doctor - $patient'
           : 'Khám với $doctor - $patient',
       'description': 'SĐT: $phone\\nGhi chú: $note',
       'start': {
@@ -646,7 +688,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     } on FirebaseException catch (e) {
       var message = 'Không thể cập nhật trạng thái. Vui lòng thử lại.';
       if (e.code == 'patient-conflict') {
-        message = 'Bạn đã có một lịch confirmed trong khung giờ này.';
+        message = 'Bạn đã có một lịch đã xác nhận trong khung giờ này.';
       } else if (e.code == 'invalid-transition') {
         message = 'Trạng thái hiện tại không cho phép thao tác này.';
       }
@@ -658,9 +700,16 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     }
 
     if (!mounted) return;
-    _showTopBanner(
+    _showCenterNotice(
       'Đã chuyển trạng thái: ${AppointmentStatus.label(nextStatus)}',
     );
+  }
+
+  @override
+  void dispose() {
+    _centerNotice?.remove();
+    _centerNotice = null;
+    super.dispose();
   }
 
   Color _statusColor(String status) {
@@ -764,18 +813,27 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
     required Map<String, dynamic> data,
     required String status,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: _lightCard,
-        borderRadius: BorderRadius.circular(12),
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
         child: Row(
           children: [
             CircleAvatar(
               radius: 25,
-              backgroundColor: Colors.white,
+              backgroundColor: scheme.surface,
               child: Icon(
                 Icons.event_available_rounded,
                 color: _primary,
@@ -794,7 +852,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                     style: GoogleFonts.lato(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: Colors.black87,
+                      color: scheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -802,7 +860,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                     'Ngày khám: ${_formatDate(data['date'])} - Giờ: ${_formatTime(data)}',
                     style: GoogleFonts.lato(
                       fontSize: 14,
-                      color: Colors.black54,
+                      color: scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -836,7 +894,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.lato(
                         fontSize: 14,
-                        color: Colors.black54,
+                        color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -864,7 +922,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                       label: Text(
                         _syncingIds.contains(doc.id)
                             ? 'Đang đồng bộ...'
-                            : 'Google Calendar',
+                            : 'Lịch Google',
                         style: GoogleFonts.lato(
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
@@ -872,11 +930,13 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _primary,
-                        disabledForegroundColor: Colors.black38,
+                        disabledForegroundColor: scheme.onSurface.withValues(
+                          alpha: 0.38,
+                        ),
                         side: BorderSide(
                           color: _canManualSyncToGoogleCalendar(status)
                               ? _primary.withValues(alpha: 0.45)
-                              : Colors.black26,
+                              : scheme.onSurface.withValues(alpha: 0.26),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         visualDensity: VisualDensity.compact,
@@ -994,6 +1054,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final user = _auth.currentUser;
     if (user == null) {
       return const Center(child: Text('Vui lòng đăng nhập để xem lịch hẹn'));
@@ -1018,7 +1079,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
               style: GoogleFonts.lato(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Colors.black54,
+                color: scheme.onSurfaceVariant,
               ),
             ),
           );
@@ -1046,9 +1107,9 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
           Container(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: scheme.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black12),
+              border: Border.all(color: scheme.outlineVariant),
             ),
             child: Wrap(
               spacing: 8,
@@ -1071,6 +1132,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
               const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
           if (sectionDocs.isEmpty) continue;
 
+          sections.add(const SizedBox(height: 6));
           sections.add(
             _buildStatusSectionHeader(
               status: status,
@@ -1087,12 +1149,12 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
                 status: status,
               ),
             );
-            sections.add(const SizedBox(height: 9));
+            sections.add(const SizedBox(height: 12));
           }
         }
 
         return ListView(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: 12),
           children: sections,
         );
       },

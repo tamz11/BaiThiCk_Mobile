@@ -21,6 +21,20 @@ class _UpdateUserDetailsState extends State<UpdateUserDetails> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
 
+  TextInputType _keyboardType() {
+    if (widget.field == 'phone') {
+      return TextInputType.phone;
+    }
+    if (widget.field == 'address') {
+      return TextInputType.streetAddress;
+    }
+    return TextInputType.text;
+  }
+
+  int _maxLines() {
+    return widget.field == 'address' ? 3 : 1;
+  }
+
   @override
   void dispose() {
     _textController.dispose();
@@ -85,6 +99,8 @@ class _UpdateUserDetailsState extends State<UpdateUserDetails> {
                 return TextFormField(
                   controller: _textController,
                   textInputAction: TextInputAction.done,
+                  keyboardType: _keyboardType(),
+                  maxLines: _maxLines(),
                   decoration: InputDecoration(
                     hintText: widget.label,
                     border: OutlineInputBorder(
