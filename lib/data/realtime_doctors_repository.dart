@@ -12,6 +12,7 @@ class RealtimeDoctorsRepository {
     yield await fetchDoctors();
     yield* Stream<List<Map<String, dynamic>>>.periodic(
       const Duration(seconds: 20),
+      (_) => const <Map<String, dynamic>>[],
     ).asyncMap((_) => fetchDoctors());
   }
 
@@ -22,6 +23,11 @@ class RealtimeDoctorsRepository {
       throw StateError('Realtime doctors fetch failed: ${response.statusCode}');
     }
     final raw = jsonDecode(response.body);
+
+    if (raw is Map && raw['error'] != null) {
+      throw StateError('Realtime doctors fetch failed: ${raw['error']}');
+    }
+
     return _mapDoctorsFromRawValue(raw);
   }
 

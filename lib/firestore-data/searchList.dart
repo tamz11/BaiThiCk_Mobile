@@ -85,6 +85,7 @@ class SearchList extends StatelessWidget {
   }
 
   Widget _buildCard(BuildContext context, Map<String, dynamic> data) {
+    final scheme = Theme.of(context).colorScheme;
     final name = data['name']?.toString() ?? 'Bác sĩ';
     final type = toVietnameseSpecialty(data['type']?.toString() ?? '');
     final image = _extractAvatarPath(data);
@@ -107,7 +108,7 @@ class SearchList extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: Colors.white,
+                backgroundColor: scheme.surface,
                 child: ClipOval(
                   child: image.isNotEmpty
                       ? Image.network(
@@ -143,7 +144,7 @@ class SearchList extends StatelessWidget {
                       style: GoogleFonts.lato(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -153,7 +154,7 @@ class SearchList extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.lato(
                         fontSize: 14,
-                        color: Colors.black54,
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -211,18 +212,19 @@ class SearchList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (embedded) return _buildBody(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           searchKey.isNotEmpty ? 'Kết quả: $searchKey' : 'Danh sách bác sĩ',
           style: GoogleFonts.lato(
-            color: Colors.black87,
+            color: scheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),

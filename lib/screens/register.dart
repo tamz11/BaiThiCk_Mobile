@@ -54,7 +54,9 @@ class _RegisterState extends State<Register> {
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Đăng ký thất bại')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? 'Đăng ký thất bại')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -63,7 +65,7 @@ class _RegisterState extends State<Register> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: NotificationListener<OverscrollIndicatorNotification>(
           onNotification: (notification) {
@@ -94,7 +96,10 @@ class _RegisterState extends State<Register> {
                       controller: _nameController,
                       keyboardType: TextInputType.name,
                       textInputAction: TextInputAction.next,
-                      style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                       decoration: _decoration('Họ và tên'),
                       onFieldSubmitted: (_) {
                         _nameFocus.unfocus();
@@ -113,7 +118,10 @@ class _RegisterState extends State<Register> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
-                      style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                       decoration: _decoration('Địa chỉ email'),
                       onFieldSubmitted: (_) {
                         _emailFocus.unfocus();
@@ -124,7 +132,9 @@ class _RegisterState extends State<Register> {
                         if (email.isEmpty) {
                           return 'Vui lòng nhập email';
                         }
-                        if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email)) {
+                        if (!RegExp(
+                          r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+                        ).hasMatch(email)) {
                           return 'Email không hợp lệ';
                         }
                         return null;
@@ -136,7 +146,10 @@ class _RegisterState extends State<Register> {
                       controller: _passwordController,
                       obscureText: true,
                       textInputAction: TextInputAction.next,
-                      style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                       decoration: _decoration('Mật khẩu'),
                       onFieldSubmitted: (_) {
                         _passwordFocus.unfocus();
@@ -159,7 +172,10 @@ class _RegisterState extends State<Register> {
                       controller: _confirmController,
                       obscureText: true,
                       textInputAction: TextInputAction.done,
-                      style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                       decoration: _decoration('Xác nhận mật khẩu'),
                       validator: (value) {
                         final confirm = value ?? '';
@@ -181,13 +197,18 @@ class _RegisterState extends State<Register> {
                           onPressed: _loading ? null : _register,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.indigo[900],
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(32),
+                            ),
                           ),
                           child: _loading
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
                               : Text(
                                   'Tạo tài khoản',
@@ -201,7 +222,11 @@ class _RegisterState extends State<Register> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(top: 25, left: 10, right: 10),
+                      padding: const EdgeInsets.only(
+                        top: 25,
+                        left: 10,
+                        right: 10,
+                      ),
                       child: Divider(
                         thickness: 1.5,
                         color: Colors.grey.shade300,
@@ -240,7 +265,11 @@ class _RegisterState extends State<Register> {
                           ),
                           TextButton(
                             onPressed: () {
-                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignIn()));
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SignIn(),
+                                ),
+                              );
                             },
                             child: Text(
                               'Đăng nhập',
@@ -288,7 +317,10 @@ class _RegisterState extends State<Register> {
     required VoidCallback onTap,
   }) {
     return Container(
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(32)),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(32),
+      ),
       child: IconButton(
         onPressed: onTap,
         icon: Text(

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/google_calendar_sync_repository.dart';
 import '../firestore-data/userDetails.dart';
+import '../utils/app_theme_controller.dart';
 
 import 'signIn.dart';
 
@@ -50,12 +51,13 @@ class UserSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: _primary),
         title: Text(
           'Cài đặt',
@@ -79,7 +81,7 @@ class UserSettings extends StatelessWidget {
               children: [
                 const CircleAvatar(
                   radius: 21,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Colors.transparent,
                   backgroundImage: AssetImage('assets/person.jpg'),
                 ),
                 const SizedBox(width: 10),
@@ -92,7 +94,7 @@ class UserSettings extends StatelessWidget {
                         style: GoogleFonts.lato(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: Colors.black87,
+                          color: scheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -103,13 +105,49 @@ class UserSettings extends StatelessWidget {
                         style: GoogleFonts.lato(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black54,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _soft),
+            ),
+            child: ValueListenableBuilder<ThemeMode>(
+              valueListenable: AppThemeController.instance.mode,
+              builder: (context, mode, _) {
+                final isDarkMode = mode == ThemeMode.dark;
+                return SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  secondary: const Icon(
+                    Icons.dark_mode_outlined,
+                    color: _primary,
+                  ),
+                  title: Text(
+                    'Chế độ tối',
+                    style: GoogleFonts.lato(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Bật/tắt giao diện tối',
+                    style: GoogleFonts.lato(fontSize: 12),
+                  ),
+                  value: isDarkMode,
+                  onChanged: (value) {
+                    AppThemeController.instance.setDarkMode(value);
+                  },
+                );
+              },
             ),
           ),
           const SizedBox(height: 12),
@@ -124,9 +162,9 @@ class UserSettings extends StatelessWidget {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: scheme.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _soft),
+              border: Border.all(color: scheme.outlineVariant),
             ),
             child: const Padding(
               padding: EdgeInsets.all(8),
@@ -162,9 +200,9 @@ class UserSettings extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: scheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _soft),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,7 +235,7 @@ class UserSettings extends StatelessWidget {
                       Text(
                         googleEmail,
                         style: GoogleFonts.lato(
-                          color: Colors.black54,
+                          color: scheme.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),

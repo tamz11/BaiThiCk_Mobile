@@ -17,6 +17,7 @@ class TopRatedList extends StatefulWidget {
 class _TopRatedListState extends State<TopRatedList> {
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: RealtimeDoctorsRepository.fetchDoctors(),
       builder: (context, snapshot) {
@@ -32,7 +33,9 @@ class _TopRatedListState extends State<TopRatedList> {
           return br.compareTo(ar);
         });
         final fromTopFive = fromRealtime.take(5).toList();
-        final source = fromTopFive.isNotEmpty ? fromTopFive : topRatedDoctors(5);
+        final source = fromTopFive.isNotEmpty
+            ? fromTopFive
+            : topRatedDoctors(5);
         if (source.isEmpty) {
           return const Center(child: Text('Không tìm thấy bác sĩ'));
         }
@@ -70,15 +73,16 @@ class _TopRatedListState extends State<TopRatedList> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         CircleAvatar(
-                          backgroundImage: (data['image']?.toString().isNotEmpty ?? false)
+                          backgroundImage:
+                              (data['image']?.toString().isNotEmpty ?? false)
                               ? NetworkImage(data['image'].toString())
                               : null,
                           radius: 25,
-                          child: (data['image']?.toString().isNotEmpty ?? false) ? null : const Icon(Icons.person),
+                          child: (data['image']?.toString().isNotEmpty ?? false)
+                              ? null
+                              : const Icon(Icons.person),
                         ),
-                        SizedBox(
-                          width: 20,
-                        ),
+                        SizedBox(width: 20),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +95,7 @@ class _TopRatedListState extends State<TopRatedList> {
                                 style: GoogleFonts.lato(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 17,
-                                  color: Colors.black87,
+                                  color: scheme.onSurface,
                                 ),
                               ),
                               Text(
@@ -100,15 +104,13 @@ class _TopRatedListState extends State<TopRatedList> {
                                 ),
                                 style: GoogleFonts.lato(
                                   fontSize: 16,
-                                  color: Colors.black54,
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        SizedBox(
-                          width: 10,
-                        ),
+                        SizedBox(width: 10),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -118,9 +120,7 @@ class _TopRatedListState extends State<TopRatedList> {
                               size: 20,
                               color: Colors.indigo[400],
                             ),
-                            SizedBox(
-                              width: 3,
-                            ),
+                            SizedBox(width: 3),
                             Text(
                               (data['rating'] ?? '').toString(),
                               style: GoogleFonts.lato(

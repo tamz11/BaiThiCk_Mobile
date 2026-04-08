@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../data/mock_doctors.dart';
 import '../data/realtime_doctors_repository.dart';
 import '../utils/specialty_text.dart';
 import 'doctorProfile.dart';
@@ -25,16 +24,51 @@ class _DoctorsListState extends State<DoctorsList> {
   // ── Chuyên khoa: tên hiển thị → giá trị 'type' trong DB ─────────────────
   static const Map<String, String> _specialtyMap = {
     'Tất cả': '',
-    'Tim mạch': 'Cardiologist',
-    'Nha khoa': 'Dentist',
-    'Mắt': 'Eye Special',
-    'Cơ xương khớp': 'Orthopaedic',
-    'Nhi khoa': 'Paediatrician',
+    'Tim mạch': 'tim_mach',
+    'Nha khoa': 'rang_ham_mat',
+    'Mắt': 'mat',
+    'Cơ xương khớp': 'co_xuong_khop',
+    'Nhi khoa': 'nhi_khoa',
   };
 
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
   String _activeType = ''; // '' = tất cả chuyên khoa
+
+  String _normalizeVietnamese(String input) {
+    final source = input.trim().toLowerCase();
+    if (source.isEmpty) return '';
+    const from =
+        'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+    const to =
+        'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+    final out = StringBuffer();
+    for (final rune in source.runes) {
+      final ch = String.fromCharCode(rune);
+      final idx = from.indexOf(ch);
+      out.write(idx >= 0 ? to[idx] : ch);
+    }
+    return out.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _canonicalType(String raw) {
+    final t = _normalizeVietnamese(raw);
+    if (t.contains('tim') || t.contains('cardio')) return 'tim_mach';
+    if (t.contains('rang') ||
+        t.contains('nha') ||
+        t.contains('dentist') ||
+        t.contains('ham')) {
+      return 'rang_ham_mat';
+    }
+    if (t == 'mat' || t.contains('eye')) return 'mat';
+    if (t.contains('co xuong') || t.contains('khop') || t.contains('orthopaedic')) {
+      return 'co_xuong_khop';
+    }
+    if (t.contains('nhi') || t.contains('paediatric') || t.contains('tre')) {
+      return 'nhi_khoa';
+    }
+    return t;
+  }
 
   @override
   void dispose() {
@@ -47,18 +81,19 @@ class _DoctorsListState extends State<DoctorsList> {
     final key = _searchText.toLowerCase();
     return all.where((d) {
       final name = (d['name'] ?? '').toString().toLowerCase();
-      final type = (d['type'] ?? '').toString().trim().toLowerCase();
+      final type = _canonicalType((d['type'] ?? '').toString());
       final nameOk = key.isEmpty || name.contains(key);
-      final typeOk = _activeType.isEmpty || type == _activeType.toLowerCase();
+      final typeOk = _activeType.isEmpty || type == _activeType;
       return nameOk && typeOk;
     }).toList();
   }
 
   // ── AppBar với ô tìm kiếm ────────────────────────────────────────────────
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return AppBar(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: scheme.surface,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       toolbarHeight: 68,
       titleSpacing: 14,
@@ -69,7 +104,7 @@ class _DoctorsListState extends State<DoctorsList> {
         style: GoogleFonts.lato(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: Colors.black87,
+          color: scheme.onSurface,
         ),
         decoration: InputDecoration(
           hintText: 'Tìm bác sĩ theo tên...',
@@ -102,6 +137,7 @@ class _DoctorsListState extends State<DoctorsList> {
 
   // ── Chip lọc chuyên khoa ─────────────────────────────────────────────────
   Widget _buildSpecialtyChips() {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 50,
       child: ListView.separated(
@@ -124,7 +160,7 @@ class _DoctorsListState extends State<DoctorsList> {
             ),
             selected: selected,
             onSelected: (_) => setState(() => _activeType = typeVal),
-            backgroundColor: Colors.white,
+            backgroundColor: scheme.surface,
             selectedColor: _primary,
             checkmarkColor: Colors.white,
             showCheckmark: false,
@@ -167,11 +203,46 @@ class _DoctorsListState extends State<DoctorsList> {
     );
   }
 
+  Widget _buildDataError(Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 70,
+              color: Color(0xFFD0D5E8),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Không tải được danh sách bác sĩ từ Realtime Database',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.lato(
+                color: _primary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error?.toString() ?? 'Lỗi không xác định',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.lato(color: Colors.black45, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: _buildAppBar(context),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -184,8 +255,10 @@ class _DoctorsListState extends State<DoctorsList> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final raw = snapshot.data ?? const [];
-                final source = raw.isNotEmpty ? raw : mockDoctors;
+                if (snapshot.hasError) {
+                  return _buildDataError(snapshot.error);
+                }
+                final source = snapshot.data ?? const <Map<String, dynamic>>[];
                 final filtered = _applyFilters(source);
 
                 if (filtered.isEmpty) return _buildEmptyState();
@@ -194,11 +267,11 @@ class _DoctorsListState extends State<DoctorsList> {
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (_, i) => _DoctorCard(
                       data: filtered[i],
                       primary: _primary,
-                      lightCard: _lightCard,
+                      lightCard: scheme.surfaceContainerLow,
                     ),
                   ),
                 );
@@ -245,6 +318,7 @@ class _DoctorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final name = data['name']?.toString() ?? 'Bác sĩ';
     final type = toVietnameseSpecialty(data['type']?.toString() ?? '');
     final image = _extractAvatarPath(data);
@@ -258,13 +332,26 @@ class _DoctorCard extends StatelessWidget {
     return Material(
       color: lightCard,
       borderRadius: BorderRadius.circular(16),
+      elevation: 0,
+      shadowColor: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => DoctorProfile(doctor: name)),
         ),
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: scheme.outlineVariant),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
           padding: const EdgeInsets.all(14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -284,7 +371,7 @@ class _DoctorCard extends StatelessWidget {
                 ),
                 child: CircleAvatar(
                   radius: 30,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
                   child: ClipOval(
                     child: image.isNotEmpty
                         ? Image.network(
@@ -323,7 +410,7 @@ class _DoctorCard extends StatelessWidget {
                       style: GoogleFonts.lato(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),

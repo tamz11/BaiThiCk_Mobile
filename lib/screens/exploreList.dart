@@ -17,8 +17,10 @@ class ExploreList extends StatelessWidget {
   String _normalizeVietnamese(String input) {
     final source = input.trim().toLowerCase();
     if (source.isEmpty) return '';
-    const from = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
-    const to = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+    const from =
+        'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+    const to =
+        'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
     final out = StringBuffer();
     for (final rune in source.runes) {
       final ch = String.fromCharCode(rune);
@@ -31,25 +33,31 @@ class ExploreList extends StatelessWidget {
   String _canonicalType(String raw) {
     final t = _normalizeVietnamese(raw);
     if (t.contains('tim')) return 'tim_mach';
-    if (t.contains('rang') || t.contains('nha') || t.contains('ham')) return 'rang_ham_mat';
+    if (t.contains('rang') || t.contains('nha') || t.contains('ham'))
+      return 'rang_ham_mat';
     if (t == 'mat' || t.contains('eye')) return 'mat';
-    if (t.contains('co xuong') || t.contains('khop') || t.contains('orthopaedic')) return 'co_xuong_khop';
-    if (t.contains('nhi') || t.contains('tre') || t.contains('paediatric')) return 'nhi_khoa';
+    if (t.contains('co xuong') ||
+        t.contains('khop') ||
+        t.contains('orthopaedic'))
+      return 'co_xuong_khop';
+    if (t.contains('nhi') || t.contains('tre') || t.contains('paediatric'))
+      return 'nhi_khoa';
     return t;
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           type,
           style: GoogleFonts.lato(
-            color: Colors.black87,
+            color: scheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -69,7 +77,9 @@ class ExploreList extends StatelessWidget {
             final doctorType = _canonicalType((d['type'] ?? '').toString());
             return doctorType == targetType;
           }).toList();
-          final source = filteredByType.isNotEmpty ? filteredByType : doctorsByType(type);
+          final source = filteredByType.isNotEmpty
+              ? filteredByType
+              : doctorsByType(type);
           if (source.isEmpty) {
             return const Center(child: Text('Không tìm thấy bác sĩ'));
           }
@@ -83,21 +93,34 @@ class ExploreList extends StatelessWidget {
                 color: _lightCard,
                 borderRadius: BorderRadius.circular(10),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   leading: CircleAvatar(
                     radius: 20,
-                    backgroundImage: (data['image']?.toString().isNotEmpty ?? false)
+                    backgroundImage:
+                        (data['image']?.toString().isNotEmpty ?? false)
                         ? NetworkImage(data['image'].toString())
                         : null,
-                    child: (data['image']?.toString().isNotEmpty ?? false) ? null : const Icon(Icons.person),
+                    child: (data['image']?.toString().isNotEmpty ?? false)
+                        ? null
+                        : const Icon(Icons.person),
                   ),
                   title: Text(
                     data['name']?.toString() ?? '',
-                    style: GoogleFonts.lato(fontSize: 15, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.lato(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   subtitle: Text(
                     toVietnameseSpecialty(data['type']?.toString() ?? ''),
-                    style: GoogleFonts.lato(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.lato(
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -106,7 +129,11 @@ class ExploreList extends StatelessWidget {
                       const SizedBox(width: 2),
                       Text(
                         (data['rating'] ?? '').toString(),
-                        style: GoogleFonts.lato(fontSize: 13, color: _primary, fontWeight: FontWeight.w800),
+                        style: GoogleFonts.lato(
+                          fontSize: 13,
+                          color: _primary,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ),

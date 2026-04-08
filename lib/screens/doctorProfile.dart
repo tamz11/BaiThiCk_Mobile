@@ -115,8 +115,9 @@ class DoctorProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>?>(
           future: RealtimeDoctorsRepository.fetchDoctorByIdentity(
@@ -143,7 +144,7 @@ class DoctorProfile extends StatelessWidget {
                       'Không tìm thấy bác sĩ',
                       style: GoogleFonts.lato(
                         fontSize: 16,
-                        color: Colors.black54,
+                        color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -176,8 +177,8 @@ class DoctorProfile extends StatelessWidget {
                   SliverAppBar(
                     expandedHeight: 220,
                     pinned: true,
-                    backgroundColor: Colors.white,
-                    surfaceTintColor: Colors.white,
+                    backgroundColor: scheme.surface,
+                    surfaceTintColor: Colors.transparent,
                     elevation: 0,
                     leading: IconButton(
                       icon: const Icon(
@@ -220,7 +221,7 @@ class DoctorProfile extends StatelessWidget {
                               ),
                               child: CircleAvatar(
                                 radius: 52,
-                                backgroundColor: Colors.white,
+                                backgroundColor: scheme.surface,
                                 child: ClipOval(
                                   child: image.isNotEmpty
                                       ? Image.network(
@@ -265,7 +266,7 @@ class DoctorProfile extends StatelessWidget {
                             style: GoogleFonts.lato(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
-                              color: Colors.black87,
+                              color: scheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -317,7 +318,7 @@ class DoctorProfile extends StatelessWidget {
                                 spec,
                                 style: GoogleFonts.lato(
                                   fontSize: 14,
-                                  color: Colors.black87,
+                                  color: scheme.onSurface,
                                   height: 1.5,
                                 ),
                               ),

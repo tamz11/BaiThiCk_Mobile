@@ -9,20 +9,16 @@ class BannerModel {
 }
 
 List<BannerModel> bannerCards = [
-  BannerModel(
-      "Kiểm tra bệnh",
-      [
-        Color(0xffa1d4ed),
-        Color(0xffc0eaff),
-      ],
-      "assets/414-bg.png"),
-  BannerModel(
-      "Covid-19",
-      [
-        Color(0xffb6d4fa),
-        Color(0xffcfe3fc),
-      ],
-      "assets/covid-bg.png"),
+  BannerModel("Kiểm tra bệnh", [
+    Color(0xffa1d4ed),
+    Color(0xffc0eaff),
+  ], "assets/414-bg.png"),
+  BannerModel("Covid-19", [
+    Color(0xffb6d4fa),
+    Color(0xffcfe3fc),
+  ], "assets/covid-bg.png"),
+  BannerModel("Chi nhánh", [
+    Color(0xffb7e4d7),
+    Color(0xffd7f3e8),
+  ], "assets/search.jpg"),
 ];
-
-

@@ -41,6 +41,7 @@ class _HomePageState extends State<HomePage> {
   ];
 
   static const Color _chatPrimary = Color(0xFF2A4BA0);
+  static const Duration _chatNetworkTimeout = Duration(seconds: 6);
   bool _chatSessionLoaded = false;
   bool _isHistoryLoading = false;
   bool _isBotTyping = false;
@@ -135,19 +136,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   String? _normalizeSpecialty(String? raw) {
-    if (raw == null) return null;
+    if (raw == null) {
+      return null;
+    }
     final text = raw.toLowerCase();
-    if (text.contains('tim')) return 'Tim mạch';
-    if (text.contains('răng') || text.contains('hàm') || text.contains('nha'))
+    if (text.contains('tim')) {
+      return 'Tim mạch';
+    }
+    if (text.contains('răng') || text.contains('hàm') || text.contains('nha')) {
       return 'Răng hàm mặt';
-    if (text.contains('mắt')) return 'Mắt';
+    }
+    if (text.contains('mắt')) {
+      return 'Mắt';
+    }
     if (text.contains('xương') ||
         text.contains('khớp') ||
-        text.contains('chỉnh'))
+        text.contains('chỉnh')) {
       return 'Cơ xương khớp';
-    if (text.contains('nhi') || text.contains('trẻ') || text.contains('bé'))
+    }
+    if (text.contains('nhi') || text.contains('trẻ') || text.contains('bé')) {
       return 'Nhi khoa';
-    if (text.contains('nội')) return 'Nội tổng quát';
+    }
+    if (text.contains('nội')) {
+      return 'Nội tổng quát';
+    }
     return null;
   }
 
@@ -394,6 +406,93 @@ class _HomePageState extends State<HomePage> {
     return 'Dựa trên triệu chứng bạn mô tả, chuyên khoa phù hợp nhất hiện tại là $primary. ${advice.note}$altText';
   }
 
+  bool _shouldUseOnlineLookup(String normalizedInput, _ChatAdvice? advice) {
+    if (advice == null) return true;
+    if (normalizedInput.contains('?')) return true;
+    const cues = <String>[
+      'la gi',
+      'nguyen nhan',
+      'trieu chung',
+      'dieu tri',
+      'phong ngua',
+      'thuoc',
+      'can kieng',
+      'an gi',
+      'co nguy hiem khong',
+    ];
+    return cues.any(normalizedInput.contains);
+  }
+
+  Future<String?> _fetchOnlineHealthSnippet(String query) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return null;
+
+    try {
+      final uri = Uri.https('api.duckduckgo.com', '/', {
+        'q': 'suc khoe $clean',
+        'format': 'json',
+        'no_html': '1',
+        'no_redirect': '1',
+        'skip_disambig': '1',
+      });
+
+      final response = await http
+          .get(uri)
+          .timeout(_chatNetworkTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+
+      final map = jsonDecode(response.body);
+      if (map is! Map<String, dynamic>) return null;
+
+      final abstractText = (map['AbstractText'] ?? '').toString().trim();
+      if (abstractText.isNotEmpty) {
+        return abstractText;
+      }
+
+      final related = map['RelatedTopics'];
+      if (related is List) {
+        for (final item in related) {
+          if (item is Map<String, dynamic>) {
+            final text = (item['Text'] ?? '').toString().trim();
+            if (text.isNotEmpty) return text;
+            final nested = item['Topics'];
+            if (nested is List) {
+              for (final n in nested) {
+                if (n is Map<String, dynamic>) {
+                  final nestedText = (n['Text'] ?? '').toString().trim();
+                  if (nestedText.isNotEmpty) return nestedText;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+
+    return null;
+  }
+
+  String _buildSmartReply({
+    required String userInput,
+    required _ChatAdvice? advice,
+    required String? onlineSnippet,
+  }) {
+    final offline = _buildNaturalOfflineReply(userInput, advice);
+    if (onlineSnippet == null || onlineSnippet.isEmpty) {
+      return '$offline\n\nMẹo: bạn có thể hỏi rõ hơn theo mẫu “nguyên nhân, dấu hiệu cảnh báo, khi nào cần đi khám ngay” để mình tư vấn sát hơn.';
+    }
+
+    final compactOnline = onlineSnippet.length > 420
+        ? '${onlineSnippet.substring(0, 420)}...'
+        : onlineSnippet;
+
+    return '$offline\n\nTham khảo thêm từ nguồn online:\n$compactOnline\n\nLưu ý: thông tin này chỉ để tham khảo, không thay thế chẩn đoán trực tiếp từ bác sĩ.';
+  }
+
   Future<void> _sendChatMessage(
     void Function(void Function()) sheetSetState,
   ) async {
@@ -409,7 +508,16 @@ class _HomePageState extends State<HomePage> {
     await _saveMessageToHistory(userMessage);
 
     final advice = _analyzeSymptoms(text);
-    final botReply = _buildNaturalOfflineReply(text, advice);
+    final normalized = _normalizeVietnamese(text);
+    String? onlineSnippet;
+    if (_shouldUseOnlineLookup(normalized, advice)) {
+      onlineSnippet = await _fetchOnlineHealthSnippet(text);
+    }
+    final botReply = _buildSmartReply(
+      userInput: text,
+      advice: advice,
+      onlineSnippet: onlineSnippet,
+    );
     final botMessage = _ChatMessage(
       text: botReply,
       isUser: false,
@@ -478,9 +586,11 @@ class _HomePageState extends State<HomePage> {
                           const Spacer(),
                           IconButton(
                             tooltip: 'Xóa chat',
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.delete_outline_rounded,
-                              color: Colors.black54,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                             onPressed: () async {
                               await _clearChatHistory();
@@ -663,7 +773,9 @@ class _HomePageState extends State<HomePage> {
                                       'Chuyên khoa có thể cân nhắc: ${item.alternatives.join(', ')}',
                                       style: GoogleFonts.lato(
                                         fontSize: 12,
-                                        color: Colors.black54,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -838,12 +950,13 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       key: _scaffoldKey,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         toolbarHeight: 82,
         titleSpacing: 0,
@@ -859,7 +972,7 @@ class _HomePageState extends State<HomePage> {
                     child: Text(
                       _message(),
                       style: GoogleFonts.lato(
-                        color: Colors.black54,
+                        color: scheme.onSurfaceVariant,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
@@ -886,7 +999,7 @@ class _HomePageState extends State<HomePage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.lato(
-                              color: Colors.black54,
+                              color: scheme.onSurfaceVariant,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -908,7 +1021,7 @@ class _HomePageState extends State<HomePage> {
                       Text(
                         _temperatureLabel,
                         style: GoogleFonts.lato(
-                          color: Colors.black54,
+                          color: scheme.onSurfaceVariant,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -940,7 +1053,7 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: scheme.onSurface),
       ),
       body: SafeArea(
         child: NotificationListener<OverscrollIndicatorNotification>(
@@ -1104,7 +1217,7 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 const SizedBox(height: 16),
                                 CircleAvatar(
-                                  backgroundColor: Colors.white,
+                                  backgroundColor: scheme.surface,
                                   radius: 29,
                                   child: Icon(
                                     cards[index].cardIcon,
