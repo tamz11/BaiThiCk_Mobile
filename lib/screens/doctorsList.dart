@@ -29,6 +29,10 @@ class _DoctorsListState extends State<DoctorsList> {
     'Mắt': 'mat',
     'Cơ xương khớp': 'co_xuong_khop',
     'Nhi khoa': 'nhi_khoa',
+    'Sản phụ khoa': 'san_phu_khoa',
+    'Nội tiết': 'noi_tiet',
+    'Tiêu hóa': 'tieu_hoa',
+    'Hô hấp': 'ho_hap',
   };
 
   final TextEditingController _searchController = TextEditingController();
@@ -61,11 +65,28 @@ class _DoctorsListState extends State<DoctorsList> {
       return 'rang_ham_mat';
     }
     if (t == 'mat' || t.contains('eye')) return 'mat';
-    if (t.contains('co xuong') || t.contains('khop') || t.contains('orthopaedic')) {
+    if (t.contains('co xuong') ||
+        t.contains('khop') ||
+        t.contains('orthopaedic')) {
       return 'co_xuong_khop';
     }
     if (t.contains('nhi') || t.contains('paediatric') || t.contains('tre')) {
       return 'nhi_khoa';
+    }
+    if (t.contains('san') ||
+        t.contains('phu khoa') ||
+        t.contains('obstetric') ||
+        t.contains('gyne')) {
+      return 'san_phu_khoa';
+    }
+    if (t.contains('noi tiet') || t.contains('endocr')) {
+      return 'noi_tiet';
+    }
+    if (t.contains('tieu hoa') || t.contains('gastro')) {
+      return 'tieu_hoa';
+    }
+    if (t.contains('ho hap') || t.contains('respir')) {
+      return 'ho_hap';
     }
     return t;
   }

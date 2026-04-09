@@ -30,5 +30,9 @@
 	<string>NSApplication</string>
 	<key>NSLocationUsageDescription</key>
 	<string>Ứng dụng cần vị trí để hiển thị khu vực và nhiệt độ hiện tại.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần quyền camera để chụp ảnh đại diện.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần quyền thư viện ảnh để chọn ảnh đại diện.</string>
 </dict>
 </plist>

@@ -42,6 +42,14 @@ class ExploreList extends StatelessWidget {
       return 'co_xuong_khop';
     if (t.contains('nhi') || t.contains('tre') || t.contains('paediatric'))
       return 'nhi_khoa';
+    if (t.contains('san') ||
+        t.contains('phu khoa') ||
+        t.contains('obstetric') ||
+        t.contains('gyne'))
+      return 'san_phu_khoa';
+    if (t.contains('noi tiet') || t.contains('endocr')) return 'noi_tiet';
+    if (t.contains('tieu hoa') || t.contains('gastro')) return 'tieu_hoa';
+    if (t.contains('ho hap') || t.contains('respir')) return 'ho_hap';
     return t;
   }
 

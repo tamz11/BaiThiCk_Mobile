@@ -25,6 +25,15 @@ class _HomePageState extends State<HomePage> {
   static const String _fallbackLocationLabel = 'Hà Nội, Việt Nam';
   static const double _fallbackLatitude = 21.0285;
   static const double _fallbackLongitude = 105.8542;
+  static const String _aiApiKey = String.fromEnvironment('AI_CHAT_API_KEY');
+  static const String _aiApiUrl = String.fromEnvironment(
+    'AI_CHAT_API_URL',
+    defaultValue: 'https://api.groq.com/openai/v1/chat/completions',
+  );
+  static const String _aiModel = String.fromEnvironment(
+    'AI_CHAT_MODEL',
+    defaultValue: 'llama-3.3-70b-versatile',
+  );
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _doctorName = TextEditingController();
@@ -128,11 +137,135 @@ class _HomePageState extends State<HomePage> {
   }
 
   _ChatMessage _welcomeMessage() {
-    return const _ChatMessage(
-      text:
-          'Xin chào, tôi là trợ lý tư vấn. Bạn mô tả triệu chứng để tôi gợi ý chuyên khoa phù hợp nhé.',
+    final aiReady = _aiApiKey.trim().isNotEmpty;
+    return _ChatMessage(
+      text: aiReady
+          ? 'Xin chào, tôi là trợ lý tư vấn sức khỏe online. Bạn mô tả triệu chứng để tôi gợi ý chuyên khoa phù hợp nhé.'
+          : 'Xin chào, tôi là trợ lý tư vấn. Bạn mô tả triệu chứng để tôi gợi ý chuyên khoa phù hợp nhé.\n\nLưu ý: để dùng AI online, hãy cấu hình AI_CHAT_API_KEY khi chạy app.',
       isUser: false,
     );
+  }
+
+  String _buildAiSystemPrompt(_ChatAdvice? advice) {
+    final base =
+        'Bạn là trợ lý tư vấn sức khỏe ban đầu bằng tiếng Việt cho ứng dụng đặt lịch khám bệnh. '
+        'Nhiệm vụ: phản hồi ngắn gọn, dễ hiểu, an toàn y khoa, không kê đơn thuốc cụ thể. '
+        'Luôn thêm cảnh báo rằng tư vấn online không thay thế bác sĩ khám trực tiếp.';
+    if (advice == null) {
+      return '$base Nếu thiếu dữ kiện, hãy hỏi lại triệu chứng chính, thời gian kéo dài và mức độ nặng.';
+    }
+    final alternatives = advice.alternatives.isEmpty
+        ? 'không có'
+        : advice.alternatives.join(', ');
+    return '$base\nDữ kiện suy luận nội bộ của hệ thống:\n- Chuyên khoa ưu tiên: ${advice.primarySpecialty}\n- Mức độ ưu tiên: ${advice.urgency}\n- Chuyên khoa cân nhắc thêm: $alternatives\n- Gợi ý hệ thống: ${advice.note}\n\nKhi trả lời: '
+        '1) Tóm tắt nhanh nhận định, '
+        '2) Nêu hành động nên làm tiếp theo, '
+        '3) Nếu có dấu hiệu nặng thì khuyên đi cấp cứu.';
+  }
+
+  List<Map<String, String>> _buildAiChatMessages({
+    required String userInput,
+    required _ChatAdvice? advice,
+  }) {
+    final messages = <Map<String, String>>[
+      {'role': 'system', 'content': _buildAiSystemPrompt(advice)},
+    ];
+
+    final recent = _chatMessages
+        .where((m) => m.text.trim().isNotEmpty)
+        .toList();
+    final start = recent.length > 8 ? recent.length - 8 : 0;
+    for (var i = start; i < recent.length; i++) {
+      final item = recent[i];
+      messages.add({
+        'role': item.isUser ? 'user' : 'assistant',
+        'content': item.text,
+      });
+    }
+
+    messages.add({'role': 'user', 'content': userInput});
+    return messages;
+  }
+
+  String? _extractChatCompletionContent(Map<String, dynamic> data) {
+    final choices = data['choices'];
+    if (choices is! List || choices.isEmpty) {
+      return null;
+    }
+    final first = choices.first;
+    if (first is! Map<String, dynamic>) {
+      return null;
+    }
+    final message = first['message'];
+    if (message is! Map<String, dynamic>) {
+      return null;
+    }
+    final content = message['content'];
+    if (content is String) {
+      final trimmed = content.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+    if (content is List) {
+      final textParts = <String>[];
+      for (final part in content) {
+        if (part is Map<String, dynamic>) {
+          final text = part['text'];
+          if (text is String && text.trim().isNotEmpty) {
+            textParts.add(text.trim());
+          }
+        }
+      }
+      if (textParts.isNotEmpty) {
+        return textParts.join('\n');
+      }
+    }
+    return null;
+  }
+
+  Future<String?> _fetchOnlineAiReply({
+    required String userInput,
+    required _ChatAdvice? advice,
+  }) async {
+    final apiKey = _aiApiKey.trim();
+    if (apiKey.isEmpty) {
+      return null;
+    }
+
+    try {
+      final uri = Uri.parse(_aiApiUrl);
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      };
+      if (uri.host.contains('openrouter.ai')) {
+        headers['HTTP-Referer'] = 'https://baithick.app';
+        headers['X-Title'] = 'baithick-medical-chatbot';
+      }
+
+      final payload = {
+        'model': _aiModel,
+        'messages': _buildAiChatMessages(userInput: userInput, advice: advice),
+        'temperature': 0.3,
+        'max_tokens': 450,
+      };
+
+      final response = await http
+          .post(uri, headers: headers, body: jsonEncode(payload))
+          .timeout(_chatNetworkTimeout);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+
+      final body = jsonDecode(response.body);
+      if (body is! Map<String, dynamic>) {
+        return null;
+      }
+
+      return _extractChatCompletionContent(body);
+    } catch (_) {
+      return null;
+    }
   }
 
   String? _normalizeSpecialty(String? raw) {
@@ -508,16 +641,24 @@ class _HomePageState extends State<HomePage> {
     await _saveMessageToHistory(userMessage);
 
     final advice = _analyzeSymptoms(text);
-    final normalized = _normalizeVietnamese(text);
-    String? onlineSnippet;
-    if (_shouldUseOnlineLookup(normalized, advice)) {
-      onlineSnippet = await _fetchOnlineHealthSnippet(text);
-    }
-    final botReply = _buildSmartReply(
+    String? botReply = await _fetchOnlineAiReply(
       userInput: text,
       advice: advice,
-      onlineSnippet: onlineSnippet,
     );
+
+    if (botReply == null || botReply.trim().isEmpty) {
+      final normalized = _normalizeVietnamese(text);
+      String? onlineSnippet;
+      if (_shouldUseOnlineLookup(normalized, advice)) {
+        onlineSnippet = await _fetchOnlineHealthSnippet(text);
+      }
+      botReply = _buildSmartReply(
+        userInput: text,
+        advice: advice,
+        onlineSnippet: onlineSnippet,
+      );
+    }
+
     final botMessage = _ChatMessage(
       text: botReply,
       isUser: false,
