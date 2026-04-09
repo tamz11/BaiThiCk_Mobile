@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../updateUserDetails.dart';
 
 class UserDetails extends StatefulWidget {
-  const UserDetails({super.key});
+  const UserDetails({super.key, this.onEditAvatar});
+
+  final VoidCallback? onEditAvatar;
 
   @override
   State<UserDetails> createState() => _UserDetailsState();
@@ -37,6 +39,15 @@ class _UserDetailsState extends State<UserDetails> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _item(
+              title: 'Ảnh đại diện',
+              value:
+                  (data['photoBase64']?.toString().trim().isNotEmpty ?? false)
+                  ? 'Đã cập nhật ảnh đại diện'
+                  : 'Chọn ảnh từ máy hoặc chụp mới',
+              onTap: widget.onEditAvatar ?? () {},
+            ),
+            const SizedBox(height: 8),
             _item(
               title: 'Họ và tên',
               value:
@@ -78,8 +89,10 @@ class _UserDetailsState extends State<UserDetails> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        UpdateUserDetails(label: 'số điện thoại', field: 'phone'),
+                    builder: (_) => UpdateUserDetails(
+                      label: 'số điện thoại',
+                      field: 'phone',
+                    ),
                   ),
                 );
               },

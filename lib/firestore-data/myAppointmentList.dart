@@ -22,6 +22,10 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   static const Color _primary = Color(0xFF4B5AB5);
   final Set<String> _syncingIds = <String>{};
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _statusSectionKeys = {
+    for (final status in _statusOrder) status: GlobalKey(),
+  };
   OverlayEntry? _centerNotice;
   static const List<String> _statusOrder = <String>[
     AppointmentStatus.pending,
@@ -97,6 +101,21 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
         entry.remove();
       }
     });
+  }
+
+  Future<void> _scrollToStatusSection(String status) async {
+    final key = _statusSectionKeys[status];
+    final targetContext = key?.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      alignment: 0.06,
+    );
   }
 
   String _formatDate(dynamic value) {
@@ -709,6 +728,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
   void dispose() {
     _centerNotice?.remove();
     _centerNotice = null;
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -742,37 +762,51 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
 
   Widget _buildStatusSummaryChip({required String status, required int count}) {
     final color = _statusColor(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_statusIcon(status), size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '${AppointmentStatus.label(status)}: $count',
-            style: GoogleFonts.lato(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
+        onTap: count > 0 ? () => _scrollToStatusSection(status) : null,
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(_statusIcon(status), size: 14, color: color),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '${AppointmentStatus.label(status)}: $count',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.lato(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildStatusSectionHeader({
+    Key? key,
     required String status,
     required int count,
   }) {
     final color = _statusColor(status);
     return Padding(
+      key: key,
       padding: const EdgeInsets.only(top: 10, bottom: 8),
       child: Row(
         children: [
@@ -1111,17 +1145,27 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: scheme.outlineVariant),
             ),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _statusOrder
-                  .map(
-                    (status) => _buildStatusSummaryChip(
-                      status: status,
-                      count: grouped[status]?.length ?? 0,
-                    ),
-                  )
-                  .toList(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 8.0;
+                final chipWidth = (constraints.maxWidth - spacing) / 2;
+
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: _statusOrder
+                      .map(
+                        (status) => SizedBox(
+                          width: chipWidth,
+                          child: _buildStatusSummaryChip(
+                            status: status,
+                            count: grouped[status]?.length ?? 0,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                );
+              },
             ),
           ),
         ];
@@ -1135,6 +1179,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
           sections.add(const SizedBox(height: 6));
           sections.add(
             _buildStatusSectionHeader(
+              key: _statusSectionKeys[status],
               status: status,
               count: sectionDocs.length,
             ),
@@ -1154,6 +1199,7 @@ class _MyAppointmentListState extends State<MyAppointmentList> {
         }
 
         return ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.only(bottom: 12),
           children: sections,
         );

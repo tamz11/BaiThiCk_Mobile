@@ -15,4 +15,8 @@ List<CardModel> cards = [
   new CardModel("Mắt", 0xFFfbc02d, TablerIcons.eye),
   new CardModel("Cơ xương khớp", 0xFF1565C0, Icons.wheelchair_pickup_sharp),
   new CardModel("Nhi khoa", 0xFF2E7D32, Icons.child_care),
+  new CardModel("Sản phụ khoa", 0xFF8E24AA, Icons.pregnant_woman_rounded),
+  new CardModel("Nội tiết", 0xFF00897B, Icons.bloodtype_rounded),
+  new CardModel("Tiêu hóa", 0xFF6D4C41, Icons.local_dining_rounded),
+  new CardModel("Hô hấp", 0xFF039BE5, Icons.air_rounded),
 ];

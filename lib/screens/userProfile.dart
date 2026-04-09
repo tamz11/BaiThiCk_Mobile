@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
 
 import '../firestore-data/appointmentHistoryList.dart';
 import 'userSettings.dart';
@@ -45,126 +46,147 @@ class UserProfile extends StatelessWidget {
   static const double _headerHeight = 150;
   static const double _avatarRadius = 58;
 
+  ImageProvider<Object> _avatarProvider(String photoBase64) {
+    if (photoBase64.trim().isNotEmpty) {
+      try {
+        return MemoryImage(base64Decode(photoBase64));
+      } catch (_) {
+        return const AssetImage('assets/person.jpg');
+      }
+    }
+    return const AssetImage('assets/person.jpg');
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final user = FirebaseAuth.instance.currentUser;
+    final userDocStream = user == null
+        ? const Stream<DocumentSnapshot<Map<String, dynamic>>>.empty()
+        : FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .snapshots();
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(15, 0, 15, 10),
-          children: [
-            Stack(
-              alignment: Alignment.center,
+        child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: userDocStream,
+          builder: (context, snapshot) {
+            final data = snapshot.data?.data() ?? const <String, dynamic>{};
+            final firestoreName = data['name']?.toString().trim() ?? '';
+            final displayName = firestoreName.isNotEmpty
+                ? firestoreName
+                : (user?.displayName ?? 'Người dùng');
+            final firestorePhone = data['phone']?.toString().trim() ?? '';
+            final phone = firestorePhone.isNotEmpty
+                ? firestorePhone
+                : ((user?.phoneNumber?.trim().isNotEmpty ?? false)
+                      ? user!.phoneNumber!
+                      : 'Chưa có số điện thoại');
+            final bio = data['bio']?.toString().trim() ?? '';
+            final photoBase64 = data['photoBase64']?.toString() ?? '';
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(15, 0, 15, 10),
               children: [
-                Column(
+                Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Container(
-                      height: _headerHeight,
-                      decoration: const BoxDecoration(
-                        color: _primary,
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(18),
-                          bottomRight: Radius.circular(18),
-                        ),
-                      ),
-                      child: Align(
-                        alignment: Alignment.topRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 8, right: 8),
-                          child: IconButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const UserSettings(),
+                    Column(
+                      children: [
+                        Container(
+                          height: _headerHeight,
+                          decoration: const BoxDecoration(
+                            color: _primary,
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(18),
+                              bottomRight: Radius.circular(18),
+                            ),
+                          ),
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 8, right: 8),
+                              child: IconButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const UserSettings(),
+                                  ),
+                                ),
+                                iconSize: 22,
+                                icon: const Icon(
+                                  Icons.settings,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                            iconSize: 22,
-                            icon: const Icon(
-                              Icons.settings,
-                              color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 72),
+                      ],
+                    ),
+                    Positioned(
+                      top: 48,
+                      child: Column(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFFE6EFEA),
+                                width: 4,
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              radius: _avatarRadius,
+                              backgroundImage: _avatarProvider(photoBase64),
+                              child: displayName.trim().isEmpty
+                                  ? Icon(Icons.person, size: _avatarRadius)
+                                  : null,
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            displayName,
+                            style: GoogleFonts.lato(
+                              fontSize: 29,
+                              fontWeight: FontWeight.w800,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 72),
                   ],
                 ),
-                Positioned(
-                  top: 48,
+                const SizedBox(height: 10),
+                _infoCard(
+                  height: 112,
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFFE6EFEA),
-                            width: 4,
-                          ),
-                        ),
-                        child: CircleAvatar(
-                          radius: _avatarRadius,
-                          backgroundImage: const AssetImage(
-                            'assets/person.jpg',
-                          ),
-                          child: (user?.displayName?.isEmpty ?? true)
-                              ? Icon(Icons.person, size: _avatarRadius)
-                              : null,
-                        ),
+                      _contactRow(
+                        context: context,
+                        icon: Icons.mail_rounded,
+                        iconBg: Colors.red.shade700,
+                        text: user?.email ?? 'Chưa có email',
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        user?.displayName ?? 'Người dùng',
-                        style: GoogleFonts.lato(
-                          fontSize: 29,
-                          fontWeight: FontWeight.w800,
-                          color: scheme.onSurface,
-                        ),
+                      const SizedBox(height: 10),
+                      _contactRow(
+                        context: context,
+                        icon: Icons.phone,
+                        iconBg: Colors.blue.shade700,
+                        text: phone,
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _infoCard(
-              height: 112,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _contactRow(
-                    context: context,
-                    icon: Icons.mail_rounded,
-                    iconBg: Colors.red.shade700,
-                    text: user?.email ?? 'Chưa có email',
-                  ),
-                  const SizedBox(height: 10),
-                  _contactRow(
-                    context: context,
-                    icon: Icons.phone,
-                    iconBg: Colors.blue.shade700,
-                    text: (user?.phoneNumber?.trim().isNotEmpty ?? false)
-                        ? user!.phoneNumber!
-                        : 'Chưa có số điện thoại',
-                  ),
-                ],
-              ),
-            ),
-            _infoCard(
-              minHeight: 130,
-              child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: user == null
-                    ? const Stream.empty()
-                    : FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(user.uid)
-                          .snapshots(),
-                builder: (context, snapshot) {
-                  final bio =
-                      snapshot.data?.data()?['bio']?.toString().trim() ?? '';
-                  return Column(
+                _infoCard(
+                  minHeight: 130,
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -195,52 +217,53 @@ class UserProfile extends StatelessWidget {
                         ),
                       ),
                     ],
-                  );
-                },
-              ),
-            ),
-            _infoCard(
-              minHeight: 170,
-              child: Column(
-                children: [
-                  Row(
+                  ),
+                ),
+                _infoCard(
+                  minHeight: 170,
+                  child: Column(
                     children: [
-                      _smallIcon(Icons.history, Colors.green.shade700),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Lịch sử lịch hẹn',
-                        style: GoogleFonts.lato(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AppointmentHistoryScreen(),
+                      Row(
+                        children: [
+                          _smallIcon(Icons.history, Colors.green.shade700),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Lịch sử lịch hẹn',
+                            style: GoogleFonts.lato(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
                             ),
-                          );
-                        },
-                        child: Text(
-                          'Xem tất cả',
-                          style: GoogleFonts.lato(
-                            color: const Color(0xFF64B5F7),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
                           ),
-                        ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const AppointmentHistoryScreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'Xem tất cả',
+                              style: GoogleFonts.lato(
+                                color: const Color(0xFF64B5F7),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 6),
+                      const AppointmentHistoryList(compactProfileStyle: true),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  const AppointmentHistoryList(compactProfileStyle: true),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

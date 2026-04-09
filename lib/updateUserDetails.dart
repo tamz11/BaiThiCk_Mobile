@@ -49,18 +49,23 @@ class _UpdateUserDetailsState extends State<UpdateUserDetails> {
 
     final value = _textController.text.trim();
     if (value.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng nhập ${widget.label}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Vui lòng nhập ${widget.label}')));
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
-        {widget.field: value},
-        SetOptions(merge: true),
-      );
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        widget.field: value,
+      }, SetOptions(merge: true));
+
+      if (widget.field == 'name') {
+        await user.updateDisplayName(value);
+        await user.reload();
+      }
+
       if (!mounted) {
         return;
       }
@@ -77,9 +82,7 @@ class _UpdateUserDetailsState extends State<UpdateUserDetails> {
     final user = _auth.currentUser;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.label),
-      ),
+      appBar: AppBar(title: Text(widget.label)),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
         child: Column(
@@ -87,7 +90,10 @@ class _UpdateUserDetailsState extends State<UpdateUserDetails> {
             StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: user == null
                   ? null
-                  : FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+                  : FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user.uid)
+                        .snapshots(),
               builder: (context, snapshot) {
                 final data = snapshot.data?.data();
                 final currentValue = data?[widget.field]?.toString() ?? '';
