@@ -229,6 +229,9 @@ class _BookingScreenState extends State<BookingScreen> {
       );
       return;
     }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final primary = Theme.of(context).colorScheme.primary;
 
     final selected = await showModalBottomSheet<TimeOfDay>(
       context: context,
@@ -248,6 +251,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 style: GoogleFonts.lato(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
+                  color: onSurface,
                 ),
               ),
               const SizedBox(height: 14),
@@ -264,20 +268,32 @@ class _BookingScreenState extends State<BookingScreen> {
                   runSpacing: 8,
                   children: _dailySlots.map((slot) {
                     final unavailable = _isSlotUnavailable(slot);
+                    final isSelected =
+                        _selectedTime?.hour == slot.hour &&
+                        _selectedTime?.minute == slot.minute;
                     final text = MaterialLocalizations.of(
                       context,
                     ).formatTimeOfDay(slot, alwaysUse24HourFormat: true);
                     return ChoiceChip(
                       label: Text(text),
-                      selected:
-                          _selectedTime?.hour == slot.hour &&
-                          _selectedTime?.minute == slot.minute,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : (unavailable ? Colors.grey : onSurface),
+                      ),
+                      selected: isSelected,
+                      selectedColor: primary,
+                      backgroundColor: isDark
+                          ? const Color(0xFF334155)
+                          : Colors.grey.shade100,
+                      disabledColor: isDark
+                          ? const Color(0xFF334155)
+                          : Colors.grey.shade300,
                       onSelected: unavailable
                           ? null
                           : (_) {
                               Navigator.pop(context, slot);
                             },
-                      disabledColor: Colors.grey.shade300,
                     );
                   }).toList(),
                 ),
@@ -695,22 +711,31 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
+    final scaffoldBg = isDark
+        ? const Color(0xFF0F172A)
+        : const Color(0xFFF4F7FF);
+    final surfaceColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.white54 : Colors.black54;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: scheme.surface,
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        iconTheme: IconThemeData(color: colorScheme.onSurface),
         title: Text(
           'Đặt lịch khám',
           style: GoogleFonts.lato(
-            color: scheme.onSurface,
+            color: textColor,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        iconTheme: IconThemeData(color: scheme.onSurface),
       ),
       body: SafeArea(
         child: NotificationListener<OverscrollIndicatorNotification>(
@@ -724,8 +749,10 @@ class _BookingScreenState extends State<BookingScreen> {
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF5C6BC0), Color(0xFF3949AB)],
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [const Color(0xFF3F51B5), const Color(0xFF283593)]
+                        : [const Color(0xFF5C6BC0), const Color(0xFF3949AB)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -801,7 +828,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
                   decoration: BoxDecoration(
-                    color: _surface,
+                    color: surfaceColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -923,7 +950,7 @@ class _BookingScreenState extends State<BookingScreen> {
                               'Khung giờ còn trống: ${_dailySlots.where((slot) => !_isSlotUnavailable(slot)).length}/${_dailySlots.length}',
                               style: GoogleFonts.lato(
                                 fontSize: 13,
-                                color: scheme.onSurfaceVariant,
+                                color: colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -956,7 +983,11 @@ class _BookingScreenState extends State<BookingScreen> {
                                   side: BorderSide(
                                     color: unavailable
                                         ? Colors.grey.shade300
-                                        : _primary.withValues(alpha: 0.35),
+                                        : (isDark
+                                              ? Colors.white30
+                                              : _primary.withValues(
+                                                  alpha: 0.35,
+                                                )),
                                   ),
                                 );
                               }).toList(),
@@ -970,7 +1001,9 @@ class _BookingScreenState extends State<BookingScreen> {
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             elevation: 0,
-                            backgroundColor: _primary,
+                            backgroundColor: isDark
+                                ? const Color(0xFF6366F1)
+                                : _primary,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -1069,6 +1102,7 @@ class _BookingScreenState extends State<BookingScreen> {
     bool readOnly = false,
     VoidCallback? onSubmitted,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextFormField(
       controller: controller,
       focusNode: focusNode,
@@ -1091,11 +1125,15 @@ class _BookingScreenState extends State<BookingScreen> {
         hintText: hint,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.indigo.shade100),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white24 : Colors.indigo.shade100,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.indigo.shade100),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white24 : Colors.indigo.shade100,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -1104,7 +1142,7 @@ class _BookingScreenState extends State<BookingScreen> {
         filled: true,
         fillColor: Theme.of(context).colorScheme.surface,
         hintStyle: GoogleFonts.lato(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: isDark ? Colors.white54 : Colors.black38,
           fontSize: 15,
           fontWeight: FontWeight.w700,
         ),
@@ -1121,6 +1159,7 @@ class _BookingScreenState extends State<BookingScreen> {
     required String? Function(String?) validator,
     required VoidCallback onSubmitted,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       height: 58,
       width: MediaQuery.of(context).size.width,
@@ -1146,11 +1185,15 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.indigo.shade100),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white10 : Colors.indigo.shade100,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.indigo.shade100),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white10 : Colors.indigo.shade100,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -1160,7 +1203,7 @@ class _BookingScreenState extends State<BookingScreen> {
               fillColor: Theme.of(context).colorScheme.surface,
               hintText: hint,
               hintStyle: GoogleFonts.lato(
-                color: Colors.black38,
+                color: isDark ? Colors.white54 : Colors.black38,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),

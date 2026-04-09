@@ -48,7 +48,7 @@ class _TopRatedListState extends State<TopRatedList> {
             return Padding(
               padding: const EdgeInsets.only(top: 3.0),
               child: Card(
-                color: Colors.blue[50],
+                color: scheme.surfaceVariant,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -58,6 +58,9 @@ class _TopRatedListState extends State<TopRatedList> {
                   width: MediaQuery.of(context).size.width,
                   height: MediaQuery.of(context).size.height / 9,
                   child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: scheme.onSurface, // màu text button
+                    ),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -78,6 +81,7 @@ class _TopRatedListState extends State<TopRatedList> {
                               ? NetworkImage(data['image'].toString())
                               : null,
                           radius: 25,
+                          backgroundColor: scheme.primaryContainer,
                           child: (data['image']?.toString().isNotEmpty ?? false)
                               ? null
                               : const Icon(Icons.person),
@@ -118,7 +122,7 @@ class _TopRatedListState extends State<TopRatedList> {
                             Icon(
                               Typicons.star_full_outline,
                               size: 20,
-                              color: Colors.indigo[400],
+                              color: scheme.secondary,
                             ),
                             SizedBox(width: 3),
                             Text(
@@ -126,7 +130,7 @@ class _TopRatedListState extends State<TopRatedList> {
                               style: GoogleFonts.lato(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: Colors.indigo,
+                                color: scheme.secondary,
                               ),
                             ),
                           ],

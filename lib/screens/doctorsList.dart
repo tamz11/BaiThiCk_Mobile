@@ -61,7 +61,9 @@ class _DoctorsListState extends State<DoctorsList> {
       return 'rang_ham_mat';
     }
     if (t == 'mat' || t.contains('eye')) return 'mat';
-    if (t.contains('co xuong') || t.contains('khop') || t.contains('orthopaedic')) {
+    if (t.contains('co xuong') ||
+        t.contains('khop') ||
+        t.contains('orthopaedic')) {
       return 'co_xuong_khop';
     }
     if (t.contains('nhi') || t.contains('paediatric') || t.contains('tre')) {
@@ -91,6 +93,7 @@ class _DoctorsListState extends State<DoctorsList> {
   // ── AppBar với ô tìm kiếm ────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppBar(
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,
@@ -111,11 +114,16 @@ class _DoctorsListState extends State<DoctorsList> {
           hintStyle: GoogleFonts.lato(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Colors.black38,
+            color: isDark ? Colors.white54 : Colors.black38,
           ),
           filled: true,
-          fillColor: _neutral.withOpacity(0.35),
-          prefixIcon: const Icon(Icons.search_rounded, color: Colors.black45),
+          fillColor: isDark
+              ? const Color(0xFF1E293B)
+              : _neutral.withOpacity(0.35),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: isDark ? Colors.white60 : Colors.black45,
+          ),
           suffixIcon: _searchText.isNotEmpty
               ? IconButton(
                   onPressed: () => setState(() {
@@ -138,6 +146,7 @@ class _DoctorsListState extends State<DoctorsList> {
   // ── Chip lọc chuyên khoa ─────────────────────────────────────────────────
   Widget _buildSpecialtyChips() {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       height: 50,
       child: ListView.separated(
@@ -160,11 +169,14 @@ class _DoctorsListState extends State<DoctorsList> {
             ),
             selected: selected,
             onSelected: (_) => setState(() => _activeType = typeVal),
-            backgroundColor: scheme.surface,
+            backgroundColor: isDark ? const Color(0xFF1E293B) : scheme.surface,
             selectedColor: _primary,
             checkmarkColor: Colors.white,
             showCheckmark: false,
-            side: BorderSide(color: selected ? _primary : _neutral, width: 1.2),
+            side: BorderSide(
+              color: selected ? _primary : (isDark ? Colors.white24 : _neutral),
+              width: 1.2,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 6),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           );
@@ -175,6 +187,7 @@ class _DoctorsListState extends State<DoctorsList> {
 
   // ── Trạng thái rỗng ──────────────────────────────────────────────────────
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -196,7 +209,10 @@ class _DoctorsListState extends State<DoctorsList> {
           const SizedBox(height: 6),
           Text(
             'Thử tìm với từ khóa hoặc chuyên khoa khác',
-            style: GoogleFonts.lato(color: Colors.black38, fontSize: 13),
+            style: GoogleFonts.lato(
+              color: isDark ? Colors.white60 : Colors.black38,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -240,6 +256,8 @@ class _DoctorsListState extends State<DoctorsList> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _buildAppBar(context),
@@ -247,7 +265,11 @@ class _DoctorsListState extends State<DoctorsList> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSpecialtyChips(),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: isDark ? Colors.white12 : Color(0xFFF0F0F0),
+          ),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: RealtimeDoctorsRepository.streamDoctors(),
@@ -318,6 +340,7 @@ class _DoctorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     final name = data['name']?.toString() ?? 'Bác sĩ';
     final type = toVietnameseSpecialty(data['type']?.toString() ?? '');
@@ -330,7 +353,7 @@ class _DoctorCard extends StatelessWidget {
         : 0.0;
 
     return Material(
-      color: lightCard,
+      color: isDark ? const Color(0xFF1E293B) : lightCard,
       borderRadius: BorderRadius.circular(16),
       elevation: 0,
       shadowColor: Colors.transparent,
@@ -343,14 +366,23 @@ class _DoctorCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: scheme.outlineVariant),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(
+              color: isDark ? Colors.white24 : scheme.outlineVariant,
+            ),
+            boxShadow: isDark
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 10,
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -360,8 +392,11 @@ class _DoctorCard extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: const [
+                  border: Border.all(
+                    color: isDark ? Colors.white24 : Colors.white,
+                    width: 2.5,
+                  ),
+                  boxShadow: [
                     BoxShadow(
                       color: Color(0x1A000000),
                       blurRadius: 6,
@@ -437,10 +472,10 @@ class _DoctorCard extends StatelessWidget {
                       const SizedBox(height: 5),
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.place_outlined,
                             size: 12,
-                            color: Colors.black38,
+                            color: isDark ? Colors.white60 : Colors.black38,
                           ),
                           const SizedBox(width: 3),
                           Expanded(
@@ -450,7 +485,7 @@ class _DoctorCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.lato(
                                 fontSize: 11,
-                                color: Colors.black38,
+                                color: isDark ? Colors.white60 : Colors.black38,
                               ),
                             ),
                           ),
@@ -461,17 +496,17 @@ class _DoctorCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.access_time_rounded,
                             size: 12,
-                            color: Colors.black38,
+                            color: isDark ? Colors.white60 : Colors.black38,
                           ),
                           const SizedBox(width: 3),
                           Text(
                             '$open – $close',
                             style: GoogleFonts.lato(
                               fontSize: 11,
-                              color: Colors.black38,
+                              color: isDark ? Colors.white60 : Colors.black38,
                             ),
                           ),
                         ],

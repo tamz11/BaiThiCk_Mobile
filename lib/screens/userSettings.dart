@@ -58,11 +58,11 @@ class UserSettings extends StatelessWidget {
         elevation: 0,
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: _primary),
+        iconTheme: IconThemeData(color: scheme.onSurface),
         title: Text(
           'Cài đặt',
           style: GoogleFonts.lato(
-            color: _primary,
+            color: scheme.primary,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -74,7 +74,7 @@ class UserSettings extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: _soft,
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -117,9 +117,11 @@ class UserSettings extends StatelessWidget {
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _soft),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
             ),
             child: ValueListenableBuilder<ThemeMode>(
               valueListenable: AppThemeController.instance.mode,
@@ -127,9 +129,9 @@ class UserSettings extends StatelessWidget {
                 final isDarkMode = mode == ThemeMode.dark;
                 return SwitchListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  secondary: const Icon(
+                  secondary: Icon(
                     Icons.dark_mode_outlined,
-                    color: _primary,
+                    color: scheme.primary,
                   ),
                   title: Text(
                     'Chế độ tối',
@@ -154,7 +156,7 @@ class UserSettings extends StatelessWidget {
           Text(
             'Chỉnh sửa hồ sơ',
             style: GoogleFonts.lato(
-              color: _primary,
+              color: scheme.primary,
               fontWeight: FontWeight.w800,
               fontSize: 15,
             ),
@@ -209,12 +211,16 @@ class UserSettings extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.calendar_month, color: _primary, size: 20),
+                        Icon(
+                          Icons.calendar_month,
+                          color: scheme.primary,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Google Calendar',
                           style: GoogleFonts.lato(
-                            color: _primary,
+                            color: scheme.primary,
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
                           ),
@@ -266,8 +272,8 @@ class UserSettings extends StatelessWidget {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _primary,
-                            foregroundColor: Colors.white,
+                            backgroundColor: scheme.primary,
+                            foregroundColor: scheme.onPrimary,
                           ),
                         ),
                       ),
@@ -279,7 +285,7 @@ class UserSettings extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Material(
-            color: const Color(0xFFFFECEC),
+            color: Theme.of(context).colorScheme.errorContainer,
             borderRadius: BorderRadius.circular(10),
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
@@ -291,7 +297,13 @@ class UserSettings extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.logout, color: Colors.red, size: 20),
+                    Icon(
+                      Icons.logout,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.red.shade300
+                          : Colors.red,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Text(
                       'Đăng xuất',

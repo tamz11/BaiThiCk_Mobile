@@ -48,13 +48,15 @@ class DoctorProfile extends StatelessWidget {
   }
 
   // ── Ngôi sao đánh giá ────────────────────────────────────────────────────
-  Widget _buildStars(int rating) {
+  Widget _buildStars(int rating, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(5, (i) {
         return Icon(
           i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
-          color: i < rating ? _accent : Colors.black12,
+          color: i < rating
+              ? _accent
+              : (isDark ? Colors.white24 : Colors.black12),
           size: 28,
         );
       }),
@@ -63,6 +65,7 @@ class DoctorProfile extends StatelessWidget {
 
   // ── Hàng thông tin (icon + text) ─────────────────────────────────────────
   Widget _infoRow({
+    required BuildContext context,
     required IconData icon,
     required String text,
     VoidCallback? onTap,
@@ -83,7 +86,11 @@ class DoctorProfile extends StatelessWidget {
                 text,
                 style: GoogleFonts.lato(
                   fontSize: 15,
-                  color: textColor ?? Colors.black87,
+                  color:
+                      textColor ??
+                      (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : Colors.black87),
                   height: 1.4,
                 ),
               ),
@@ -116,6 +123,8 @@ class DoctorProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -193,10 +202,15 @@ class DoctorProfile extends StatelessWidget {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              _primary.withOpacity(0.08),
-                              _accent.withOpacity(0.14),
-                            ],
+                            colors: isDark
+                                ? [
+                                    const Color(0xFF1E293B),
+                                    const Color(0xFF0F172A),
+                                  ]
+                                : [
+                                    _primary.withOpacity(0.08),
+                                    _accent.withOpacity(0.14),
+                                  ],
                           ),
                         ),
                         child: Column(
@@ -208,7 +222,7 @@ class DoctorProfile extends StatelessWidget {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: Colors.white,
+                                  color: isDark ? Colors.white24 : Colors.white,
                                   width: 4,
                                 ),
                                 boxShadow: [
@@ -277,14 +291,14 @@ class DoctorProfile extends StatelessWidget {
                           const SizedBox(height: 12),
 
                           // Đánh giá sao
-                          _buildStars(rating),
+                          _buildStars(rating, isDark),
 
                           const SizedBox(height: 6),
                           Text(
                             '$rating / 5',
                             style: GoogleFonts.lato(
                               fontSize: 13,
-                              color: Colors.black38,
+                              color: isDark ? Colors.white60 : Colors.black38,
                             ),
                           ),
 
@@ -301,7 +315,9 @@ class DoctorProfile extends StatelessWidget {
                                 style: GoogleFonts.lato(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.black45,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black45,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -311,7 +327,9 @@ class DoctorProfile extends StatelessWidget {
                               width: double.infinity,
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF4F6FF),
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF4F6FF),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -334,7 +352,7 @@ class DoctorProfile extends StatelessWidget {
                               style: GoogleFonts.lato(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.black45,
+                                color: isDark ? Colors.white70 : Colors.black45,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -342,8 +360,13 @@ class DoctorProfile extends StatelessWidget {
                           const SizedBox(height: 4),
                           Container(
                             decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
                               border: Border.all(
-                                color: const Color(0xFFEEEEEE),
+                                color: isDark
+                                    ? Colors.white24
+                                    : const Color(0xFFEEEEEE),
                               ),
                               borderRadius: BorderRadius.circular(14),
                             ),
@@ -351,16 +374,21 @@ class DoctorProfile extends StatelessWidget {
                               children: [
                                 if (address.isNotEmpty)
                                   _infoRow(
+                                    context: context,
                                     icon: Icons.place_outlined,
                                     text: address,
                                   ),
                                 if (phone.isNotEmpty) ...[
-                                  const Divider(
+                                  Divider(
                                     height: 1,
                                     indent: 20,
                                     endIndent: 20,
+                                    color: isDark
+                                        ? Colors.white12
+                                        : const Color(0xFFEEEEEE),
                                   ),
                                   _infoRow(
+                                    context: context,
                                     icon: Icons.phone_in_talk_rounded,
                                     text: phone,
                                     textColor: Colors.blue[700],
@@ -374,6 +402,7 @@ class DoctorProfile extends StatelessWidget {
                                     endIndent: 20,
                                   ),
                                   _infoRow(
+                                    context: context,
                                     icon: Icons.email_outlined,
                                     text: email,
                                     textColor: Colors.blue[700],
@@ -387,6 +416,7 @@ class DoctorProfile extends StatelessWidget {
                                     endIndent: 20,
                                   ),
                                   _infoRow(
+                                    context: context,
                                     icon: Icons.access_time_rounded,
                                     text: 'Hôm nay: $open – $close',
                                   ),
@@ -410,13 +440,15 @@ class DoctorProfile extends StatelessWidget {
                               label: Text(
                                 'Đặt lịch khám',
                                 style: GoogleFonts.lato(
-                                  color: Colors.white,
+                                  color: isDark ? Colors.white24 : Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _primary,
+                                backgroundColor: isDark
+                                    ? const Color(0xFF6366F1)
+                                    : _primary,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),

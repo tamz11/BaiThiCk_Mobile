@@ -130,6 +130,7 @@ class UserProfile extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _infoCard(
+              context: context,
               height: 112,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -153,6 +154,7 @@ class UserProfile extends StatelessWidget {
               ),
             ),
             _infoCard(
+              context: context,
               minHeight: 130,
               child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: user == null
@@ -200,6 +202,7 @@ class UserProfile extends StatelessWidget {
               ),
             ),
             _infoCard(
+              context: context,
               minHeight: 170,
               child: Column(
                 children: [
@@ -246,12 +249,17 @@ class UserProfile extends StatelessWidget {
     );
   }
 
-  Widget _infoCard({required Widget child, double? height, double? minHeight}) {
+  Widget _infoCard({
+    required BuildContext context,
+    required Widget child,
+    double? height,
+    double? minHeight,
+  }) {
     final box = Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: _soft,
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(10),
       ),
       child: child,

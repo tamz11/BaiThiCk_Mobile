@@ -78,8 +78,10 @@ class _UserDetailsState extends State<UserDetails> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        UpdateUserDetails(label: 'số điện thoại', field: 'phone'),
+                    builder: (_) => UpdateUserDetails(
+                      label: 'số điện thoại',
+                      field: 'phone',
+                    ),
                   ),
                 );
               },
@@ -110,8 +112,11 @@ class _UserDetailsState extends State<UserDetails> {
     required VoidCallback onTap,
   }) {
     final scheme = Theme.of(context).colorScheme;
+    final bgColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey[850]
+        : _soft;
     return Material(
-      color: _soft,
+      color: bgColor,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),

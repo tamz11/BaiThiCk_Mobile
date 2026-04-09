@@ -86,14 +86,17 @@ class _HomePageState extends State<HomePage> {
                     decoration: BoxDecoration(
                       color: Colors.red.shade600,
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white, width: 1.2),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        width: 1.2,
+                      ),
                     ),
                     constraints: const BoxConstraints(minWidth: 16),
                     child: Text(
                       badgeText,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.lato(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                       ),
@@ -436,9 +439,7 @@ class _HomePageState extends State<HomePage> {
         'skip_disambig': '1',
       });
 
-      final response = await http
-          .get(uri)
-          .timeout(_chatNetworkTimeout);
+      final response = await http.get(uri).timeout(_chatNetworkTimeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return null;
       }
@@ -544,8 +545,8 @@ class _HomePageState extends State<HomePage> {
             _loadChatHistory(sheetSetState);
             return Container(
               height: MediaQuery.of(context).size.height * 0.72,
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: SafeArea(
@@ -569,9 +570,9 @@ class _HomePageState extends State<HomePage> {
                           CircleAvatar(
                             radius: 16,
                             backgroundColor: _chatPrimary,
-                            child: const Icon(
+                            child: Icon(
                               Icons.support_agent_rounded,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                               size: 18,
                             ),
                           ),
@@ -650,7 +651,9 @@ class _HomePageState extends State<HomePage> {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEAF1FF),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerLow,
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Row(
@@ -828,9 +831,9 @@ class _HomePageState extends State<HomePage> {
                             child: IconButton(
                               onPressed: () async =>
                                   _sendChatMessage(sheetSetState),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.send_rounded,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onSurface,
                                 size: 20,
                               ),
                             ),
@@ -1095,7 +1098,9 @@ class _HomePageState extends State<HomePage> {
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: Colors.grey[200],
+                        fillColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         hintText: 'Tìm bác sĩ',
                         hintStyle: GoogleFonts.lato(
                           color: Colors.black26,
@@ -1110,7 +1115,7 @@ class _HomePageState extends State<HomePage> {
                           child: IconButton(
                             iconSize: 20,
                             splashRadius: 20,
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onSurface,
                             icon: const Icon(Icons.search),
                             onPressed: () {
                               final value = _doctorName.text.trim();
@@ -1190,7 +1195,11 @@ class _HomePageState extends State<HomePage> {
                             color: Color(cards[index].cardBackground),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.grey[400]!,
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.black45
+                                    : Colors.grey[400]!,
                                 blurRadius: 4.0,
                                 spreadRadius: 0.0,
                                 offset: const Offset(3, 3),
@@ -1231,7 +1240,9 @@ class _HomePageState extends State<HomePage> {
                                   child: Text(
                                     cards[index].doctor,
                                     style: GoogleFonts.lato(
-                                      color: Colors.white,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1252,7 +1263,9 @@ class _HomePageState extends State<HomePage> {
                       'Bác sĩ nổi bật',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.lato(
-                        color: Colors.blue[800],
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.lightBlue[300]
+                            : Colors.blue[800],
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                       ),
@@ -1296,9 +1309,9 @@ class _HomePageState extends State<HomePage> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.chat_bubble_rounded,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onSurface,
                   size: 26,
                 ),
                 Positioned(

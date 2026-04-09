@@ -57,10 +57,9 @@ class _BranchMapScreenState extends State<BranchMapScreen> {
   @override
   void initState() {
     super.initState();
-    _webViewController =
-        WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..loadHtmlString('''
+    _webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadHtmlString('''
 <!DOCTYPE html>
 <html>
   <head>
@@ -96,10 +95,11 @@ class _BranchMapScreenState extends State<BranchMapScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: scheme.surface,
+        backgroundColor: isDark ? const Color(0xFF0F172A) : scheme.surface,
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Chi nhánh',
@@ -125,14 +125,16 @@ class _BranchMapScreenState extends State<BranchMapScreen> {
             decoration: BoxDecoration(
               color: scheme.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: scheme.outlineVariant),
+              border: Border.all(
+                color: isDark ? Colors.white24 : scheme.outlineVariant,
+              ),
             ),
             child: Text(
               'Chọn chi nhánh để mở Google Maps và dẫn đường',
               style: GoogleFonts.lato(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: scheme.onSurfaceVariant,
+                color: isDark ? Colors.white70 : scheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -142,9 +144,11 @@ class _BranchMapScreenState extends State<BranchMapScreen> {
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               decoration: BoxDecoration(
-                color: scheme.surface,
+                color: isDark ? const Color(0xFF1E293B) : scheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: scheme.outlineVariant),
+                border: Border.all(
+                  color: isDark ? Colors.white24 : scheme.outlineVariant,
+                ),
               ),
               child: Row(
                 children: [
@@ -179,6 +183,12 @@ class _BranchMapScreenState extends State<BranchMapScreen> {
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.primary,
+                      side: BorderSide(
+                        color: isDark ? Colors.white30 : scheme.primary,
+                      ),
+                    ),
                     onPressed: () => _openDirections(branch),
                     icon: const Icon(Icons.directions_rounded, size: 16),
                     label: const Text('Dẫn đường'),

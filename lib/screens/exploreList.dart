@@ -48,10 +48,11 @@ class ExploreList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: scheme.surface,
+        backgroundColor: isDark ? const Color(0xFF0F172A) : scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
@@ -90,7 +91,7 @@ class ExploreList extends StatelessWidget {
             itemBuilder: (context, index) {
               final data = source[index];
               return Material(
-                color: _lightCard,
+                color: isDark ? const Color(0xFF1E293B) : _lightCard,
                 borderRadius: BorderRadius.circular(10),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
@@ -118,20 +119,20 @@ class ExploreList extends StatelessWidget {
                     toVietnameseSpecialty(data['type']?.toString() ?? ''),
                     style: GoogleFonts.lato(
                       fontSize: 13,
-                      color: scheme.onSurfaceVariant,
+                      color: isDark ? Colors.white70 : scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded, color: _primary, size: 18),
+                      Icon(Icons.star_rounded, color: isDark ? Colors.amber : _primary, size: 18),
                       const SizedBox(width: 2),
                       Text(
                         (data['rating'] ?? '').toString(),
                         style: GoogleFonts.lato(
                           fontSize: 13,
-                          color: _primary,
+                          color: isDark ? Colors.white : _primary,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
